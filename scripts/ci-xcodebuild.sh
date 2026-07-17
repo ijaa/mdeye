@@ -13,10 +13,10 @@ rm -rf "$DERIVED"
 mkdir -p "$DERIVED"
 
 # Ensure icon exists at App/AppIcon.icns (flat copy into Contents/Resources)
-if [[ ! -f "$APP_DIR/AppIcon.icns" ]]; then
-  if [[ -f "$APP_DIR/Assets/mdeasy-logo.jpeg" ]]; then
-    chmod +x "$ROOT/scripts/build-icon.sh"
-    "$ROOT/scripts/build-icon.sh"
+if [[ ! -f "$APP_DIR/AppIcon.icns" ]] || [[ -f "$APP_DIR/Assets/mdeasy-logo.jpeg" ]]; then
+  if [[ -f "$APP_DIR/Assets/mdeasy-logo.jpeg" || -f "$APP_DIR/Assets/mdeasy-icon-transparent.png" ]]; then
+    chmod +x "$ROOT/scripts/build-icon.sh" "$ROOT/scripts/process-icon-alpha.py" || true
+    "$ROOT/scripts/build-icon.sh" "$APP_DIR/Assets/mdeasy-logo.jpeg"
   else
     echo "WARN: AppIcon.icns missing and no logo source"
   fi
