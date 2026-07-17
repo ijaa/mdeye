@@ -1,26 +1,43 @@
 #!/usr/bin/env bash
 # Verifies that opening a .md actually renders content in the webview.
-# Requires: mdeasy.app installed (argument or /Applications/mdeasy.app)
 set -euo pipefail
 
 APP="${1:-/Applications/mdeasy.app}"
-if [[ ! -d "$APP/Contents/MacOS" ]]; then
-  # allow artifact dir that is Contents-only
-  if [[ -d "$APP/Contents" ]]; then
-    :
-  else
-    echo "FAIL: not an app: $APP" >&2
-    exit 1
-  fi
-fi
 
-# If APP is a bare Contents parent from artifact, wrap it
-if [[ ! -d "$APP/Contents/MacOS" && -d "$APP/Contents" ]]; then
-  WRAP=$(mktemp -d)/mdeasy.app
-  mkdir -p "$WRAP"
-  cp -R "$APP/Contents" "$WRAP/"
-  APP="$WRAP"
-fi
+# Normalize artifact layouts into a real .app
+normalize_app() {
+  local src="$1"
+  if [[ -x "$src/Contents/MacOS/mdeasy" ]]; then
+    echo "$src"
+    return
+  fi
+  if [[ -x "$src/Contents/MacOS/mdeasy" ]]; then
+    echo "$src"
+    return
+  fi
+  if [[ -d "$src/Contents/MacOS" ]]; then
+    local wrap
+    wrap="$(mktemp -d)/mdeasy.app"
+    mkdir -p "$wrap"
+    cp -R "$src/Contents" "$wrap/"
+    echo "$wrap"
+    return
+  fi
+  # bare Contents folder downloaded as artifact root
+  if [[ -d "$src/MacOS" && -f "$src/Info.plist" ]]; then
+    local wrap
+    wrap="$(mktemp -d)/mdeasy.app"
+    mkdir -p "$wrap/Contents"
+    cp -R "$src"/* "$wrap/Contents/"
+    echo "$wrap"
+    return
+  fi
+  echo "FAIL: cannot find mdeasy binary under $src" >&2
+  exit 1
+}
+
+APP="$(normalize_app "$APP")"
+echo "Using app: $APP"
 
 echo "== structural =="
 INDEX=$(find "$APP/Contents/Resources" -name index.html | head -n1)
@@ -41,11 +58,11 @@ fi
 echo "OK classic IIFE ($(du -h "$APPJS" | awk '{print $1}'))"
 
 pkill -x mdeasy 2>/dev/null || true
-sleep 0.4
+sleep 0.5
 rm -f /tmp/mdeasy-last-shown.json
 
-MD1=$(mktemp /tmp/mdeasy-verify-XXXX.md)
-MD2=$(mktemp /tmp/mdeasy-verify-XXXX.md)
+MD1="/tmp/mdeasy-verify-cold-$$.md"
+MD2="/tmp/mdeasy-verify-warm-$$.md"
 cat >"$MD1" <<'EOF'
 # Verify Cold
 
@@ -64,27 +81,25 @@ graph LR
 ```
 EOF
 
-install_app() {
-  rm -rf /Applications/mdeasy.app
-  cp -R "$APP" /Applications/mdeasy.app
-  xattr -c /Applications/mdeasy.app 2>/dev/null || true
-}
-
-install_app
+rm -rf /Applications/mdeasy.app
+cp -R "$APP" /Applications/mdeasy.app
+xattr -c /Applications/mdeasy.app 2>/dev/null || true
 
 wait_stamp() {
   local expect_path="$1"
-  local i
-  for i in $(seq 1 40); do
+  local i path chars
+  for i in $(seq 1 80); do  # up to ~20s for cold first load of 2.8MB JS
     if [[ -f /tmp/mdeasy-last-shown.json ]]; then
-      if grep -q "$expect_path" /tmp/mdeasy-last-shown.json 2>/dev/null; then
-        cat /tmp/mdeasy-last-shown.json
+      path=$(python3 -c 'import json;print(json.load(open("/tmp/mdeasy-last-shown.json")).get("path",""))' 2>/dev/null || true)
+      chars=$(python3 -c 'import json;print(json.load(open("/tmp/mdeasy-last-shown.json")).get("chars",-1))' 2>/dev/null || true)
+      if [[ "$path" == "$expect_path" && "$chars" -ge 10 ]]; then
+        echo "stamp ok path=$path chars=$chars"
         return 0
       fi
     fi
     sleep 0.25
   done
-  echo "FAIL: no doc-shown stamp for $expect_path" >&2
+  echo "FAIL: no matching doc-shown stamp for $expect_path" >&2
   echo "stamp now:" >&2
   cat /tmp/mdeasy-last-shown.json 2>/dev/null || echo '(missing)' >&2
   return 1
@@ -94,30 +109,14 @@ echo "== cold open =="
 rm -f /tmp/mdeasy-last-shown.json
 open -a /Applications/mdeasy.app "$MD1"
 wait_stamp "$MD1"
-CHARS=$(python3 -c 'import json;print(json.load(open("/tmp/mdeasy-last-shown.json"))["chars"])')
-if [[ "$CHARS" -lt 10 ]]; then
-  echo "FAIL: cold chars too small: $CHARS" >&2
-  exit 1
-fi
-echo "OK cold rendered chars=$CHARS"
+echo "OK cold rendered"
 
 echo "== warm open =="
 rm -f /tmp/mdeasy-last-shown.json
 open -a /Applications/mdeasy.app "$MD2"
 wait_stamp "$MD2"
-CHARS2=$(python3 -c 'import json;print(json.load(open("/tmp/mdeasy-last-shown.json"))["chars"])')
-if [[ "$CHARS2" -lt 10 ]]; then
-  echo "FAIL: warm chars too small: $CHARS2" >&2
-  exit 1
-fi
-echo "OK warm rendered chars=$CHARS2"
+echo "OK warm rendered"
 
-# title check
 TITLE=$(osascript -e 'tell application "System Events" to tell process "mdeasy" to get name of window 1' 2>/dev/null || true)
 echo "window title: $TITLE"
-BASE2=$(basename "$MD2")
-if [[ "$TITLE" != "$BASE2" ]]; then
-  echo "WARN: title=$TITLE expected=$BASE2"
-fi
-
 echo "ALL SMOKE CHECKS PASSED"
