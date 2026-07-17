@@ -52,6 +52,21 @@ jobs:
       - name: Build macOS app (unsigned)
         run: ./scripts/ci-xcodebuild.sh
 
+      - name: Bundle sanity (no ESM)
+        run: |
+          chmod +x scripts/smoke-open.sh
+          # Only structural checks that don't need GUI session reliability
+          APP=build/mdeasy.app
+          INDEX=$(find "$APP/Contents/Resources" -name index.html | head -n1)
+          APPJS=$(find "$APP/Contents/Resources" -name app.js | head -n1)
+          test -n "$INDEX" && test -n "$APPJS"
+          ! grep -q 'type="module"' "$INDEX"
+          ! head -c 40 "$APPJS" | grep -q '^import'
+          echo "bundle OK: classic IIFE"
+          # quick strings probe for bridge
+          grep -q '__mdeasy' "$APPJS"
+          du -sh "$APP" "$APPJS"
+
       - name: Upload mdeasy.app
         uses: actions/upload-artifact@v4
         with:

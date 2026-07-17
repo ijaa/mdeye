@@ -1,4 +1,7 @@
 import { renderMarkdown, extractOutlineFromHtml, documentHasMermaid } from "./md.js";
+// Static import so esbuild can emit a single IIFE (no dynamic import / ESM chunks).
+// Dynamic import() is broken under WKWebView file:// and custom-scheme without module support.
+import mermaid from "mermaid";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -9,7 +12,6 @@ const state = {
   theme: "light",
   outlineOpen: true,
   mermaidReady: false,
-  mermaidLoading: null,
 };
 
 function post(msg) {
@@ -26,7 +28,6 @@ function setTheme(name) {
   document.documentElement.setAttribute("data-theme", theme);
   const select = $("#theme-select");
   if (select) select.value = theme;
-  // Re-theme mermaid diagrams if present
   if (state.mermaidReady && document.querySelector(".mermaid, .mermaid-block svg")) {
     renderMermaidBlocks().catch(() => {});
   }
@@ -91,48 +92,8 @@ function updateActiveOutline() {
   });
 }
 
-async function ensureMermaid() {
-  if (state.mermaidReady) return window.mermaid;
-  if (state.mermaidLoading) return state.mermaidLoading;
-
-  state.mermaidLoading = (async () => {
-    const mod = await import("./mermaid-runtime.js");
-    const mermaid = mod.default;
-    const dark = state.theme === "dark";
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: "strict",
-      theme: dark ? "dark" : "default",
-      fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
-    });
-    window.mermaid = mermaid;
-    state.mermaidReady = true;
-    return mermaid;
-  })();
-
-  try {
-    return await state.mermaidLoading;
-  } catch (err) {
-    state.mermaidLoading = null;
-    throw err;
-  }
-}
-
-async function renderMermaidBlocks() {
-  const nodes = [...document.querySelectorAll(".mermaid-block .mermaid, pre.mermaid")];
-  if (!nodes.length) return;
-
-  let mermaid;
-  try {
-    mermaid = await ensureMermaid();
-  } catch (err) {
-    nodes.forEach((node) => {
-      const wrap = node.closest(".mermaid-block") || node;
-      wrap.innerHTML = `<div class="mermaid-error">Mermaid failed to load: ${escapeHtml(String(err?.message || err))}</div>`;
-    });
-    return;
-  }
-
+function ensureMermaid() {
+  if (state.mermaidReady) return mermaid;
   const dark = state.theme === "dark";
   mermaid.initialize({
     startOnLoad: false,
@@ -140,10 +101,36 @@ async function renderMermaidBlocks() {
     theme: dark ? "dark" : "default",
     fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
   });
+  window.mermaid = mermaid;
+  state.mermaidReady = true;
+  return mermaid;
+}
 
-  // mermaid.run expects elements with class mermaid still containing source text
+async function renderMermaidBlocks() {
+  const nodes = [...document.querySelectorAll(".mermaid-block .mermaid, pre.mermaid")];
+  if (!nodes.length) return;
+
+  let m;
   try {
-    await mermaid.run({ nodes, suppressErrors: true });
+    m = ensureMermaid();
+  } catch (err) {
+    nodes.forEach((node) => {
+      const wrap = node.closest(".mermaid-block") || node;
+      wrap.innerHTML = `<div class="mermaid-error">Mermaid failed: ${escapeHtml(String(err?.message || err))}</div>`;
+    });
+    return;
+  }
+
+  const dark = state.theme === "dark";
+  m.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: dark ? "dark" : "default",
+    fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+  });
+
+  try {
+    await m.run({ nodes, suppressErrors: true });
   } catch (err) {
     console.warn("mermaid.run error", err);
   }
@@ -153,11 +140,13 @@ async function showDoc({ path, text }) {
   state.path = path;
   state.text = text ?? "";
   const title = basename(path);
-  $("#doc-title").textContent = title;
+  const titleEl = $("#doc-title");
+  if (titleEl) titleEl.textContent = title;
   document.title = `${title} · mdeasy`;
 
   const html = renderMarkdown(state.text);
   const content = $("#content");
+  if (!content) return;
   content.classList.remove("empty");
   content.innerHTML = html;
   const outline = extractOutlineFromHtml(html);
@@ -173,9 +162,11 @@ async function showDoc({ path, text }) {
 function showEmpty() {
   state.path = null;
   state.text = "";
-  $("#doc-title").textContent = "mdeasy";
+  const titleEl = $("#doc-title");
+  if (titleEl) titleEl.textContent = "mdeasy";
   document.title = "mdeasy";
   const content = $("#content");
+  if (!content) return;
   content.classList.add("empty");
   content.innerHTML = `<div class="empty-state"><h1>mdeasy</h1><p>Open a Markdown file to start reading.</p><p class="hint">⌘O open · drag & drop · double-click .md<br/>Menu: mdeasy → Set as Default Markdown App</p></div>`;
   renderOutline([]);
@@ -247,6 +238,9 @@ function handleNativeEvent(msg) {
         post({ type: "export-html", html, suggestedName: `${base}.html` });
         break;
       }
+      case "ping":
+        post({ type: "pong", version: window.__mdeasyVersion || "unknown" });
+        break;
       default:
         break;
     }
@@ -285,29 +279,25 @@ function bindUi() {
 window.__mdeasy = {
   handle: handleNativeEvent,
 };
-
-// Expose a simple fingerprint for native probing.
-window.__mdeasyVersion = "0.2.2";
+window.__mdeasyVersion = "0.2.3";
 
 bindUi();
 setTheme("light");
 showEmpty();
-// ready may race with native openFile — native side keeps latestDoc and retries.
-post({ type: "ready" });
-// Second ready tick helps if the first message was sent before the handler was attached on the native side.
-setTimeout(() => post({ type: "ready" }), 50);
+post({ type: "ready", version: window.__mdeasyVersion });
+setTimeout(() => post({ type: "ready", version: window.__mdeasyVersion }), 50);
 
-// Browser-only preview helper (no native bridge)
+// Browser-only preview (no native bridge)
 if (!window.webkit?.messageHandlers?.mdeasy) {
   const demo = `# mdeasy preview
 
-This is the **browser** preview of the full reader pack.
+Browser preview of the **IIFE** full pack.
 
 ## Features
 
 - GFM tables
 - Task lists
-- Mermaid diagrams (bundled)
+- Mermaid (bundled)
 
 \`\`\`js
 console.log("hello mdeasy");
@@ -317,9 +307,6 @@ console.log("hello mdeasy");
 | - | - |
 | 1 | 2 |
 
-- [x] Offline
-- [x] Mermaid
-
 \`\`\`mermaid
 graph LR
   A[Open .md] --> B[Render]
@@ -327,5 +314,5 @@ graph LR
 \`\`\`
 `;
   showDoc({ path: "preview.md", text: demo });
-  console.info("mdeasy reader: browser preview mode (full)");
+  console.info("mdeasy reader: browser preview mode");
 }

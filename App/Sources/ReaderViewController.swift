@@ -45,12 +45,12 @@ final class DropView: NSView {
 final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNavigationDelegate {
     private var webView: WKWebView!
     private let assetHandler = AssetSchemeHandler()
+    private var appSchemeHandler: AppSchemeHandler?
     private let fileWatcher = FileWatcher()
     private var currentPath: String?
-    /// Latest document payload; re-sent on ready / navigation finish / failed JS eval.
     private var latestDoc: [String: Any]?
     private var readerReady = false
-    private var pageLoadID = 0
+    private var readerRoot: URL?
 
     override func loadView() {
         let drop = DropView(frame: NSRect(x: 0, y: 0, width: 960, height: 720))
@@ -72,9 +72,21 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     }
 
     private func setupWebView() {
+        guard let root = Self.locateReaderRoot() else {
+            showFatal("reader/index.html missing from app bundle.\nRun: ./scripts/build-reader.sh && ./scripts/sync-reader-to-app.sh")
+            // Still create an empty webview to avoid nil crashes
+            webView = WKWebView(frame: view.bounds)
+            webView.autoresizingMask = [.width, .height]
+            view.addSubview(webView)
+            return
+        }
+        readerRoot = root
+
         let config = WKWebViewConfiguration()
+        let appHandler = AppSchemeHandler(root: root)
+        appSchemeHandler = appHandler
+        config.setURLSchemeHandler(appHandler, forURLScheme: AppSchemeHandler.scheme)
         config.setURLSchemeHandler(assetHandler, forURLScheme: AssetSchemeHandler.scheme)
-        // Prefer page-world scripts.
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         config.userContentController.add(self, name: "mdeasy")
 
@@ -88,36 +100,37 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         webView = wv
     }
 
-    private func loadReader() {
+    private static func locateReaderRoot() -> URL? {
         let candidates: [URL] = {
             var urls: [URL] = []
+            if let resourceURL = Bundle.main.resourceURL {
+                urls.append(resourceURL.appendingPathComponent("Resources/reader"))
+                urls.append(resourceURL.appendingPathComponent("reader"))
+            }
             if let u = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "Resources/reader") {
-                urls.append(u)
+                urls.append(u.deletingLastPathComponent())
             }
             if let u = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "reader") {
-                urls.append(u)
-            }
-            if let resourceURL = Bundle.main.resourceURL {
-                urls.append(resourceURL.appendingPathComponent("Resources/reader/index.html"))
-                urls.append(resourceURL.appendingPathComponent("reader/index.html"))
+                urls.append(u.deletingLastPathComponent())
             }
             return urls
         }()
+        return candidates.first { root in
+            FileManager.default.fileExists(atPath: root.appendingPathComponent("index.html").path)
+                && FileManager.default.fileExists(atPath: root.appendingPathComponent("app.js").path)
+        }?.standardizedFileURL
+    }
 
-        guard let indexURL = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
-            showFatal("reader/index.html missing from app bundle.\nRun: ./scripts/build-reader.sh && ./scripts/sync-reader-to-app.sh")
-            return
-        }
-        // Allow the whole reader directory (scripts + chunks).
-        let access = indexURL.deletingLastPathComponent()
-        NSLog("mdeasy: loading reader %@", indexURL.path)
+    private func loadReader() {
+        guard let _ = readerRoot else { return }
+        // Load via custom scheme so classic scripts execute reliably.
+        guard let url = URL(string: "\(AppSchemeHandler.scheme)://reader/index.html") else { return }
+        NSLog("mdeasy: loading reader %@", url.absoluteString)
         readerReady = false
-        pageLoadID += 1
-        webView.loadFileURL(indexURL, allowingReadAccessTo: access)
+        webView.load(URLRequest(url: url))
     }
 
     func openFile(path: String) {
-        // Always hop to main — Launch Services callbacks are usually main, but be safe.
         if !Thread.isMainThread {
             DispatchQueue.main.async { [weak self] in self?.openFile(path: path) }
             return
@@ -177,7 +190,6 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             return
         }
 
-        // Prefer structured argument passing — avoids JS string quoting / UTF-8 pitfalls.
         if #available(macOS 11.0, *) {
             let script = """
             (function(payload){
@@ -186,10 +198,17 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
               }
               window.__mdeasy.handle(payload);
               return 'ok';
-            })(payload)
+            })
             """
+            // callAsyncJavaScript expects a function body; pass arguments map.
             webView.callAsyncJavaScript(
-                script,
+                """
+                if (!window.__mdeasy || typeof window.__mdeasy.handle !== 'function') {
+                  return 'no-handler';
+                }
+                window.__mdeasy.handle(payload);
+                return 'ok';
+                """,
                 arguments: ["payload": object],
                 in: nil,
                 in: .page
@@ -205,7 +224,6 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
                     }
                 case .failure(let error):
                     NSLog("mdeasy: bridge callAsync error: %@", error.localizedDescription)
-                    // Fallback to evaluateJavaScript base64 path
                     self.sendBridgeEventLegacy(object, completion: completion)
                 }
             }
@@ -264,13 +282,14 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
 
         if !readerReady {
             NSLog("mdeasy: defer doc push (%@) — reader not ready", reason)
+            // Still schedule retries in case ready message is delayed/lost.
+            scheduleDocRetry(attempt: 1)
             return
         }
 
         sendBridgeEvent(doc) { [weak self] error in
             guard let self else { return }
             if error != nil {
-                // Retry a few times while the page finishes wiring the handler.
                 self.scheduleDocRetry(attempt: 1)
             } else {
                 NSLog("mdeasy: doc pushed (%@)", reason)
@@ -279,10 +298,16 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     }
 
     private func scheduleDocRetry(attempt: Int) {
-        guard attempt <= 8, latestDoc != nil else { return }
-        let delay = 0.05 * Double(attempt)
+        guard attempt <= 20, latestDoc != nil else { return }
+        let delay = min(0.05 * Double(attempt), 0.5)
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, let doc = self.latestDoc else { return }
+            // Probe readiness each retry
+            self.webView?.evaluateJavaScript("!!(window.__mdeasy && window.__mdeasy.handle)") { result, _ in
+                if let ok = result as? Bool, ok {
+                    self.readerReady = true
+                }
+            }
             self.sendBridgeEvent(doc) { err in
                 if err != nil {
                     self.scheduleDocRetry(attempt: attempt + 1)
@@ -317,16 +342,21 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     // MARK: - WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        NSLog("mdeasy: webView didFinish")
-        // If JS already posted ready, re-push. If not, ready handler will push.
-        if readerReady {
-            pushLatestDocument(reason: "didFinish")
-        } else {
-            // Probe: sometimes ready message is lost; try marking ready if handler exists.
-            webView.evaluateJavaScript("!!(window.__mdeasy && window.__mdeasy.handle)") { [weak self] result, _ in
-                if let ok = result as? Bool, ok {
-                    self?.readerReady = true
-                    self?.pushLatestDocument(reason: "didFinish-probe")
+        NSLog("mdeasy: webView didFinish %@", webView.url?.absoluteString ?? "?")
+        webView.evaluateJavaScript("!!(window.__mdeasy && window.__mdeasy.handle)") { [weak self] result, _ in
+            if let ok = result as? Bool, ok {
+                self?.readerReady = true
+                self?.pushLatestDocument(reason: "didFinish-probe")
+            } else {
+                NSLog("mdeasy: __mdeasy handler missing after didFinish")
+                // One more delayed probe — script tags may still be evaluating.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    webView.evaluateJavaScript("!!(window.__mdeasy && window.__mdeasy.handle)") { result2, _ in
+                        if let ok2 = result2 as? Bool, ok2 {
+                            self?.readerReady = true
+                            self?.pushLatestDocument(reason: "didFinish-delayed")
+                        }
+                    }
                 }
             }
         }
@@ -349,13 +379,15 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
 
         switch type {
         case "ready":
-            NSLog("mdeasy: reader JS ready")
+            NSLog("mdeasy: reader JS ready v=%@", (body["version"] as? String) ?? windowVersionPlaceholder())
             readerReady = true
             sendBridgeEvent([
                 "type": "theme",
                 "name": Preferences.shared.theme
             ])
             pushLatestDocument(reason: "js-ready")
+        case "pong":
+            NSLog("mdeasy: pong %@", String(describing: body["version"]))
         case "export-html":
             handleExport(body)
         case "open-in-editor":
@@ -374,6 +406,8 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             break
         }
     }
+
+    private func windowVersionPlaceholder() -> String { "?" }
 
     private func handleExport(_ body: [String: Any]) {
         guard let html = body["html"] as? String else { return }

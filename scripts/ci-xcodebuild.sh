@@ -38,7 +38,7 @@ du -sh "$OUT_APP/Contents/Resources" 2>/dev/null || true
 
 # Size gate for full pack (Mermaid included). Override with MAX_APP_KB.
 SIZE_KB=$(du -sk "$OUT_APP" | awk '{print $1}')
-MAX_KB=${MAX_APP_KB:-12288} # 12 MB default for full pack
+MAX_KB=${MAX_APP_KB:-20480} # 20 MB — IIFE full pack includes mermaid
 if (( SIZE_KB > MAX_KB )); then
   echo "ERROR: app size ${SIZE_KB}KB exceeds gate ${MAX_KB}KB" >&2
   exit 1

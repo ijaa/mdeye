@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' mdeasy-asset: data: blob:; font-src 'self' data:; connect-src 'none'; frame-src 'none'; base-uri 'none';"
+      content="default-src 'none'; script-src 'self' mdeasy-app:; style-src 'self' mdeasy-app: 'unsafe-inline'; img-src 'self' mdeasy-app: mdeasy-asset: data: blob:; font-src 'self' mdeasy-app: data:; connect-src 'none'; frame-src 'none'; base-uri 'none';"
     />
     <title>mdeasy</title>
     <link rel="stylesheet" href="styles/themes.css" />
@@ -36,6 +36,6 @@
         </article>
       </main>
     </div>
-    <script type="module" src="app.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>

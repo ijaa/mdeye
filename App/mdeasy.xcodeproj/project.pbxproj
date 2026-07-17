@@ -16,6 +16,7 @@
 		A10000000000000000000007 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* Preferences.swift */; };
 		A10000000000000000000009 /* DefaultAppService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* DefaultAppService.swift */; };
 		A1000000000000000000000A /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* main.swift */; };
+		A1000000000000000000000B /* AppSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* AppSchemeHandler.swift */; };
 		A10000000000000000000008 /* Resources in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* Resources */; };
 /* End PBXBuildFile section */
 
@@ -29,6 +30,7 @@
 		A20000000000000000000007 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* DefaultAppService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultAppService.swift; sourceTree = "<group>"; };
 		A2000000000000000000000C /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		A2000000000000000000000D /* AppSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchemeHandler.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources; sourceTree = "<group>"; };
 		A20000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000000000000000000000A /* mdeasy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mdeasy.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -67,6 +69,7 @@
 				A20000000000000000000007 /* Preferences.swift */,
 				A2000000000000000000000B /* DefaultAppService.swift */,
 				A2000000000000000000000C /* main.swift */,
+				A2000000000000000000000D /* AppSchemeHandler.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -152,6 +155,7 @@
 				A10000000000000000000007 /* Preferences.swift in Sources */,
 				A10000000000000000000009 /* DefaultAppService.swift in Sources */,
 				A1000000000000000000000A /* main.swift in Sources */,
+				A1000000000000000000000B /* AppSchemeHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -200,7 +204,7 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -208,7 +212,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.2.3;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mdeasy.mdeasy;
 				PRODUCT_NAME = mdeasy;
 				SWIFT_VERSION = 5.0;
@@ -222,7 +226,7 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -230,7 +234,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.2.3;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mdeasy.mdeasy;
 				PRODUCT_NAME = mdeasy;
 				SWIFT_VERSION = 5.0;
