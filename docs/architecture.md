@@ -249,7 +249,7 @@ mdeasy/
 │   └── smoke-open.sh
 ├── fixtures/sample.md
 ├── .github/workflows/{ci,release}.yml
-├── docs/技术方案.md
+├── docs/architecture.md
 └── README.md
 ```
 
