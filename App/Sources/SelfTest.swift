@@ -21,7 +21,6 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private var started = Date()
     private let timeout: TimeInterval = 30
     private var finished = false
-    private var pollTimer: Timer?
 
     init(path: String) {
         self.path = path
@@ -57,13 +56,11 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         NSLog("mdeasy: selftest loading %@", url.absoluteString)
         wv.load(URLRequest(url: url))
 
-        // Timeout watchdog (runs on the common run loop mode).
-        let timer = Timer(timeInterval: 0.5, repeats: false) { [weak self] _ in
-            self?.fail("timeout")
+        // 30s watchdog: reader cold-load (esp. initial 2.8MB IIFE parse + mermaid) can
+        // take a few seconds; fail hard only if doc-shown never arrives in time.
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak self] in
+            self?.fail("timeout waiting for doc-shown")
         }
-        timer.tolerance = 0.2
-        RunLoop.main.add(timer, forMode: .common)
-        pollTimer = timer
     }
 
     // MARK: - pushing the doc once JS is ready
@@ -185,7 +182,6 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private func succeed() {
         guard !finished else { return }
         finished = true
-        pollTimer?.invalidate()
         print("SELFTEST OK")
         exit(0)
     }
@@ -193,7 +189,6 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private func fail(_ reason: String) {
         guard !finished else { return }
         finished = true
-        pollTimer?.invalidate()
         NSLog("mdeasy: SELFTEST FAIL %@", reason)
         print("SELFTEST FAIL: \(reason)")
         exit(1)
