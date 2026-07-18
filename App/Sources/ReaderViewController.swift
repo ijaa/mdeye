@@ -43,6 +43,8 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     private var latestDoc: [String: Any]?
     private var readerReady = false
     private var readerRoot: URL?
+    /// 待导出 PDF 的目标 URL：用户选好保存路径后挂起，等 JS 回传实测尺寸（`export-pdf-measured`）再 createPDF。
+    private var pendingExportURL: URL?
 
     override func loadView() {
         let drop = DropView(frame: NSRect(x: 0, y: 0, width: 960, height: 720))
@@ -188,77 +190,58 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         }
     }
 
-    /// 注入打印态、实测整篇尺寸、用原生 `createPDF(rect=全高)` 分页出 PDF，落盘后恢复阅读态。
+    /// 注入打印态并实测整篇尺寸。`callAsyncJavaScript` 在 `mdeye-app://` 自定义协议 webview 上
+    /// 始终返回 nil（实测 beta5/beta6），拿不到 JS return 值。改用 fire-and-forget `evaluateJavaScript`
+    /// 注入 + 测尺寸，结果经桥接 `webkit.messageHandlers.mdeye` 回传 `{type:"export-pdf-measured"}`
+    /// （那条在 `sendBridgeEvent` 已稳定可用），`userContentController` 收到后调 `renderPDF`。
     private func writePDF(from webView: WKWebView, to url: URL) {
-        webView.callAsyncJavaScript(
-            """
-            (function() {
-              // 幂等：若已存在先移除，避免上次异常残留。
-              document.getElementById('mdeye-print-mode')?.remove();
-              var style = document.createElement('style');
-              style.id = 'mdeye-print-mode';
-              style.textContent = ''
-                + 'html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }'
-                + '#app { display:block !important; height:auto !important; min-height:0 !important; }'
-                + '#main { display:block !important; height:auto !important; min-height:0 !important; }'
-                + '.markdown-body { flex:none !important; overflow:visible !important; height:auto !important; max-height:none !important; padding:28px 32px 64px !important; }'
-                + '.outline, .toolbar { display:none !important; }';
-              document.head.appendChild(style);
-              // 同步读尺寸：访问 scrollHeight/offsetHeight 会触发同步 reflow，
-              // 拿到注入打印态后的真实布局（不依赖 Promise/RAF，避免 callAsyncJavaScript
-              // 不 await Promise 而返回 nil 导致回退视口尺寸→只截一屏）。
-              var c = document.querySelector('.markdown-body');
-              // 强制一次同步 reflow。
-              void document.documentElement.offsetHeight;
-              return {
-                width: document.documentElement.clientWidth,
-                height: Math.ceil(document.documentElement.scrollHeight),
-                contentScroll: c ? c.scrollHeight : -1,
-                vport: window.innerHeight
-              };
-            })();
-            """,
-            arguments: [:],
-            in: nil,
-            in: .page
-        ) { [weak self] result in
-            guard let self else { return }
-            switch result {
-            case .success(let value):
-                let dbg = debugMeasure(value)
-                let width: Double
-                let height: Double
-                if let dict = value as? [String: Any],
-                   let w = (dict["width"] as? Double) ?? (dict["width"] as? Int).map(Double.init),
-                   let h = (dict["height"] as? Double) ?? (dict["height"] as? Int).map(Double.init),
-                   w > 0, h > 0 {
-                    width = w
-                    height = h
-                } else {
-                    width = Double(webView.bounds.width)
-                    height = Double(webView.bounds.height)
-                }
-                self.renderPDF(on: webView, to: url, width: width, height: height, debugInfo: dbg)
-            case .failure(let error):
-                NSLog("mdeye: print-mode inject failed: %@", error.localizedDescription)
-                webView.evaluateJavaScript("document.getElementById('mdeye-print-mode')?.remove()")
-                self.renderPDF(on: webView, to: url,
-                               width: Double(webView.bounds.width),
-                               height: Double(webView.bounds.height),
-                               debugInfo: "inject FAILED: \(error.localizedDescription)")
-            }
-        }
+        pendingExportURL = url
+        let js = """
+        (function() {
+          document.getElementById('mdeye-print-mode')?.remove();
+          var style = document.createElement('style');
+          style.id = 'mdeye-print-mode';
+          style.textContent = ''
+            + 'html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }'
+            + '#app { display:block !important; height:auto !important; min-height:0 !important; }'
+            + '#main { display:block !important; height:auto !important; min-height:0 !important; }'
+            + '.markdown-body { flex:none !important; overflow:visible !important; height:auto !important; max-height:none !important; padding:28px 32px 64px !important; }'
+            + '.outline, .toolbar { display:none !important; }';
+          document.head.appendChild(style);
+          // 强制同步 reflow，再读全篇高度。
+          void document.documentElement.offsetHeight;
+          var c = document.querySelector('.markdown-body');
+          var msg = {
+            type: 'export-pdf-measured',
+            width: document.documentElement.clientWidth,
+            height: Math.ceil(document.documentElement.scrollHeight),
+            contentScroll: c ? c.scrollHeight : -1,
+            vport: window.innerHeight
+          };
+          try { window.webkit.messageHandlers.mdeye.postMessage(msg); } catch (e) {}
+        })();
+        """
+        webView.evaluateJavaScript(js)
     }
 
-    /// TEMP DEBUG: 把注入前后实测组装成人类可读字符串。
-    private func debugMeasure(_ value: Any) -> String {
-        guard let d = value as? [String: Any] else { return "non-dict: \(value)" }
-        func snap(_ s: Any?) -> String {
-            guard let m = s as? [String: Any] else { return "?" }
-            func n(_ k: String) -> String { String(describing: m[k] ?? "?") }
-            return "vport=\(n("vport")) docClient=\(n("docClient")) docScroll=\(n("docScroll")) bodyScroll=\(n("bodyScroll")) contentScroll=\(n("contentScroll")) contentClient=\(n("contentClient")) appMinH=\(n("appMinHeight"))"
+    /// 桥接收到 JS 实测的整篇尺寸后，用其驱动 `createPDF`（rect=全高）分页出 PDF。
+    private func handleExportMeasured(_ body: [String: Any]) {
+        guard let webView, let url = pendingExportURL else { return }
+        let dbg = "measured width=\(body["width"] ?? "?") height=\(body["height"] ?? "?") contentScroll=\(body["contentScroll"] ?? "?") vport=\(body["vport"] ?? "?")"
+        let width: Double
+        let height: Double
+        if let w = (body["width"] as? Double) ?? (body["width"] as? Int).map(Double.init),
+           let h = (body["height"] as? Double) ?? (body["height"] as? Int).map(Double.init),
+           w > 0, h > 0 {
+            width = w
+            height = h
+        } else {
+            NSLog("mdeye: export-pdf-measured invalid, fallback viewport")
+            width = Double(webView.bounds.width)
+            height = Double(webView.bounds.height)
         }
-        return "BEFORE \(snap(d["before"]))\nAFTER  \(snap(d["after"]))\n→ width=\(d["width"] ?? "?") height=\(d["height"] ?? "?")"
+        pendingExportURL = nil
+        renderPDF(on: webView, to: url, width: width, height: height, debugInfo: dbg)
     }
 
     private func renderPDF(on webView: WKWebView, to url: URL, width: Double, height: Double, debugInfo: String) {
@@ -546,6 +529,8 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             if let href = body["href"] as? String {
                 openMarkdownLink(href: href)
             }
+        case "export-pdf-measured":
+            handleExportMeasured(body)
         case "set-preference":
             if let key = body["key"] as? String {
                 Preferences.shared.set(key: key, value: body["value"])
