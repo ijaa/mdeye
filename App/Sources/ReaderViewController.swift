@@ -175,13 +175,8 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         let printOp = webView.printOperation(with: printInfo)
         printOp.showsPrintPanel = true
         printOp.showsProgressPanel = true
-        if let window = view.window {
-            // 系统打印面板（modal sheet）；用户在「PDF ▾ → 另存为 PDF」落盘。
-            // macOS 12 SDK 下签名为带 delegate/didRun/contextInfo 三参，无回调时传 nil。
-            printOp.runOperationModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
-        } else {
-            printOp.run()
-        }
+        // run() 按上述开关弹出打印面板（含「PDF ▾ → 另存为 PDF」），并模态执行至结束。
+        printOp.run()
     }
 
     func revealInFinder() {
