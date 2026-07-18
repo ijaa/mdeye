@@ -186,46 +186,6 @@ function showEmpty() {
   renderOutline([]);
 }
 
-function buildExportHtml() {
-  const theme = state.theme;
-  const body = $("#content")?.innerHTML ?? "";
-  const title = basename(state.path) || "export";
-  let css = "";
-  try {
-    for (const sheet of document.styleSheets) {
-      try {
-        for (const rule of sheet.cssRules) {
-          css += rule.cssText + "\n";
-        }
-      } catch {
-        // ignore
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  return `<!DOCTYPE html>
-<html lang="zh-CN" data-theme="${theme}">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(title)}</title>
-<style>
-${css}
-body { margin: 0; background: var(--bg); color: var(--fg); }
-.markdown-body { padding: 32px 24px 64px; }
-.markdown-body > * { max-width: 42rem; margin-left: auto; margin-right: auto; }
-</style>
-</head>
-<body>
-<article class="markdown-body">
-${body}
-</article>
-</body>
-</html>`;
-}
-
 function handleNativeEvent(msg) {
   if (!msg || typeof msg !== "object") return;
   try {
@@ -244,13 +204,6 @@ function handleNativeEvent(msg) {
       case "toggle-outline":
         toggleOutline();
         break;
-      case "request-export": {
-        if (!state.path) return;
-        const html = buildExportHtml();
-        const base = basename(state.path).replace(/\.(md|markdown|mdx|mdown|mkd|mkdn|mdwn)$/i, "");
-        post({ type: "export-html", html, suggestedName: `${base}.html` });
-        break;
-      }
       case "ping":
         post({ type: "pong", version: window.__mdeasyVersion || "unknown" });
         break;

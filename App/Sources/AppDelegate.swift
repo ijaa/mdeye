@@ -64,36 +64,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sender.reply(toOpenOrPrint: .success)
     }
 
+    /// Product decision: mdeasy is a single-document reader. When multiple files are
+    /// opened together (Finder multi-select, `open a.md b.md`), render only the last
+    /// one instead of looping through each — keeps the UI to exactly one open file
+    /// and avoids a storm of redundant latestDoc pushes / re-renders.
     private func enqueue(paths: [String]) {
         let cleaned = paths
             .map { ($0 as NSString).expandingTildeInPath }
             .map { URL(fileURLWithPath: $0).standardizedFileURL.path }
             .filter { !$0.isEmpty }
 
-        guard !cleaned.isEmpty else { return }
+        guard let target = cleaned.last else { return }
 
         if let wc = windowController {
-            for path in cleaned {
-                NSLog("mdeasy: open request → %@", path)
-                wc.openFile(path: path)
-            }
+            NSLog("mdeasy: open request → %@%@", cleaned.count > 1 ? "(\(cleaned.count)) " : "", target)
+            wc.openFile(path: target)
             wc.showWindow(nil)
             wc.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
         } else {
-            pendingPaths.append(contentsOf: cleaned)
-            NSLog("mdeasy: queued %d path(s) before window ready", cleaned.count)
+            pendingPaths.append(target)
+            NSLog("mdeasy: queued open → %@", target)
         }
     }
 
     private func flushPendingPaths() {
         guard let wc = windowController, !pendingPaths.isEmpty else { return }
-        let paths = pendingPaths
+        let path = pendingPaths.last!
         pendingPaths.removeAll()
-        for path in paths {
-            NSLog("mdeasy: flush queued → %@", path)
-            wc.openFile(path: path)
-        }
+        NSLog("mdeasy: flush queued → %@", path)
+        wc.openFile(path: path)
         wc.showWindow(nil)
         wc.window?.makeKeyAndOrderFront(nil)
     }

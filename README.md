@@ -21,7 +21,7 @@ Inspired by [MDView](https://www.mdview.cn/).
 - Outline (H1–H3)
 - Themes: Light / Dark / Sepia / Green
 - Local relative images (sandboxed to the markdown folder tree)
-- Export single-file HTML
+- Export PDF
 - Fully offline, no telemetry
 - **Universal Binary** (Apple Silicon `arm64` + Intel `x86_64`)
 - Custom rounded app icon (transparent corners, no black frame)

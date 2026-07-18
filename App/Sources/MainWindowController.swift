@@ -60,7 +60,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         fileMenu.addItem(withTitle: "Open…", action: #selector(openMarkdown(_:)), keyEquivalent: "o")
         fileMenu.addItem(withTitle: "Reload", action: #selector(reloadMarkdown(_:)), keyEquivalent: "r")
         fileMenu.addItem(NSMenuItem.separator())
-        fileMenu.addItem(withTitle: "Export HTML…", action: #selector(exportHTML(_:)), keyEquivalent: "e")
+        fileMenu.addItem(withTitle: "Export PDF…", action: #selector(exportPDF(_:)), keyEquivalent: "e")
         fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(withTitle: "Reveal in Finder", action: #selector(revealInFinder(_:)), keyEquivalent: "R")
         fileMenu.addItem(withTitle: "Open in Editor", action: #selector(openInEditor(_:)), keyEquivalent: "E")
@@ -111,8 +111,8 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         contentController.reloadCurrentFile()
     }
 
-    @objc private func exportHTML(_ sender: Any?) {
-        contentController.requestExportHTML()
+    @objc private func exportPDF(_ sender: Any?) {
+        contentController.requestExportPDF()
     }
 
     @objc private func revealInFinder(_ sender: Any?) {
@@ -166,7 +166,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         Version \(version) (full)
 
         Offline Markdown reader for macOS.
-        GFM · Mermaid · Themes · HTML export
+        GFM · Mermaid · Themes · PDF export
 
         Unsigned self-use build:
         System Settings → Privacy & Security → Open Anyway

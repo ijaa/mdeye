@@ -21,7 +21,7 @@
 - 大纲（H1–H3）
 - 主题：Light / Dark / Sepia / Green
 - 本地相对路径图片（限制在 md 所在目录树）
-- 导出单文件 HTML
+- 导出 PDF
 - 全离线、无遥测
 - **Universal Binary**（Apple Silicon `arm64` + Intel `x86_64`）
 - 自定义圆角图标（透明角，无黑边）

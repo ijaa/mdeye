@@ -1,5 +1,6 @@
 import AppKit
 import WebKit
+import UniformTypeIdentifiers
 
 final class DropView: NSView {
     var onDropMarkdown: ((String) -> Void)?
@@ -165,8 +166,41 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         openFile(path: path)
     }
 
-    func requestExportHTML() {
-        sendBridgeEvent(["type": "request-export"])
+    func requestExportPDF() {
+        guard currentPath != nil, let webView else { return }
+        let suggested = (currentPath as NSString?)?
+            .components(separatedBy: "/").last?
+            .replacingOccurrences(
+                of: "\\.(md|markdown|mdx|mdown|mkd|mkdn|mdwn)$",
+                with: "",
+                options: .regularExpression
+            ) ?? "export"
+
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(suggested).pdf"
+        if #available(macOS 11.0, *) { panel.allowedContentTypes = [.pdf] }
+        panel.begin { [weak self] result in
+            guard result == .OK, let url = panel.url else { return }
+            self?.writePDF(from: webView, to: url)
+        }
+    }
+
+    /// Render the current WKWebView content to a paginated PDF (macOS 12+).
+    /// Native path — no JS-side HTML assembly needed; reflects the live theme and CSS.
+    private func writePDF(from webView: WKWebView, to url: URL) {
+        let configuration = WKPDFConfiguration()
+        webView.createPDF(with: configuration) { [weak self] result in
+            switch result {
+            case .success(let data):
+                do {
+                    try data.write(to: url, options: .atomic)
+                } catch {
+                    self?.presentError(error.localizedDescription)
+                }
+            case .failure(let error):
+                self?.presentError("PDF export failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     func revealInFinder() {
@@ -399,8 +433,6 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             Self.writeSmokeStamp(path: path, chars: chars)
         case "pong":
             NSLog("mdeasy: pong %@", String(describing: body["version"]))
-        case "export-html":
-            handleExport(body)
         case "open-in-editor":
             openInEditor()
         case "reveal-in-finder":
@@ -430,26 +462,6 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]) else { return }
         let url = URL(fileURLWithPath: "/tmp/mdeasy-last-shown.json")
         try? data.write(to: url, options: .atomic)
-    }
-
-    private func handleExport(_ body: [String: Any]) {
-        guard let html = body["html"] as? String else { return }
-        let suggested = (body["suggestedName"] as? String) ?? "export.html"
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = suggested
-        if #available(macOS 11.0, *) {
-            panel.allowedContentTypes = [.html]
-        } else {
-            panel.allowedFileTypes = ["html"]
-        }
-        panel.begin { result in
-            guard result == .OK, let url = panel.url else { return }
-            do {
-                try html.write(to: url, atomically: true, encoding: .utf8)
-            } catch {
-                NSAlert(error: error).runModal()
-            }
-        }
     }
 
     private enum BridgeError: LocalizedError {

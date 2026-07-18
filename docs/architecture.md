@@ -42,17 +42,18 @@
 | 小体积 | 相对 Electron 很小；完整包含 Mermaid 后 dmg 约 **~1.5–2 MB** 量级（压缩后），`.app` 内 JS 约 **2.8 MB** |
 | 快启动 | 中等文档亚秒～秒级可读（首次加载 IIFE 略重） |
 | 不登录 / 不联网 / 不打扰 | 无账号、无遥测、无 CDN |
-| 专注阅读 | 大纲、主题；不提供编辑 |
+| 专注阅读 | 大纲、主题；不提供编辑；**始终只渲染一个文件（多选后打开取最后一个）** |
 | 实时预览 | 外部编辑器保存 → 自动重渲染 |
 | Mermaid | 离线渲染（flowchart / sequence 等） |
 | 多主题 | Light / Dark / Sepia / Green |
-| HTML 导出 | 单文件自包含 |
+| PDF 导出 | 原生 `WKWebView.createPDF`（分页、保留主题） |
 
 ### 1.2 明确不做
 
-- 多端、WYSIWYG 编辑器、知识库、插件市场、AI  
-- 当前阶段 Apple 签名公证  
-- 依赖本机 Xcode 才能参与 **reader** 开发  
+- 多端、WYSIWYG 编辑器、知识库、插件市场、AI
+- **多窗口 / 多标签**（始终单文件：多选打开只渲染最后一个）
+- 当前阶段 Apple 签名公证
+- 依赖本机 Xcode 才能参与 **reader** 开发
 
 ### 1.3 与 MDView
 
@@ -107,7 +108,7 @@
   → JS ready / didFinish / 重试 → 推送 doc
   → markdown-it 渲染；含 mermaid 则 mermaid.run
   → FileWatcher 监听；保存后再次 openFile
-  → 可选：导出 HTML / 默认应用 / 主题
+  → 可选：导出 PDF / 默认应用 / 主题
 ```
 
 ---
@@ -192,13 +193,12 @@
 
 - `{ type: "doc", path, baseDir, text, encoding, mtimeMs }`
 - `{ type: "theme", name }`
-- `{ type: "toggle-outline" }` / `{ type: "request-export" }`
+- `{ type: "toggle-outline" }`
 
 **JS → Swift**（`webkit.messageHandlers.mdeasy`）：
 
 - `{ type: "ready", version? }`
 - `{ type: "doc-shown", path, chars, hasMermaid }`（冒烟戳记 `/tmp/mdeasy-last-shown.json`）
-- `{ type: "export-html", html, suggestedName }`
 - `{ type: "set-preference", key, value }`
 - open-in-editor / reveal-in-finder / error
 
