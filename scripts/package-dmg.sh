@@ -4,7 +4,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/build/mdeye.app"
 # VERSION is normally supplied by CI (from the git tag). This fallback only matches
 # the app version kept in App/Info.plist for offline/legacy use.
-VERSION="${VERSION:-0.3.0}"
+VERSION="${VERSION:-0.4.0}"
 STAGE="$ROOT/build/dmg-stage"
 DMG="$ROOT/build/mdeye-${VERSION}.dmg"
 

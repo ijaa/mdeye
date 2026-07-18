@@ -6,7 +6,7 @@ Local-first **Markdown reader for macOS** (not an editor / note vault).
 
 Inspired by [MDView](https://www.mdview.cn/).
 
-**Current version: v0.3.0** · [Releases](https://github.com/ijaa/mdeye/releases)
+**Current version: v0.4.0** · [Releases](https://github.com/ijaa/mdeye/releases)
 
 **Languages:** English | [中文](README.zh-CN.md)
 
@@ -85,8 +85,8 @@ Sync build output into the app bundle resources:
 ./scripts/ci-xcodebuild.sh
 # → build/mdeye.app (forces arm64 + x86_64)
 
-VERSION=0.3.0 ./scripts/package-dmg.sh
-# → build/mdeye-0.3.0.dmg
+VERSION=0.4.0 ./scripts/package-dmg.sh
+# → build/mdeye-0.4.0.dmg
 ```
 
 ### Without Xcode
@@ -200,7 +200,7 @@ More detail: [docs/architecture.md](docs/architecture.md)
 
 ## Version & release
 
-- Version: `CFBundleShortVersionString` / `CFBundleVersion` in `App/Info.plist` (currently **0.3.0 / 11**)
+- Version: `CFBundleShortVersionString` / `CFBundleVersion` in `App/Info.plist` (currently **0.4.0 / 12**)
 - CI: push → build + structural gates (IIFE, universal binary, icon path)
 - Release: tag `v*` → dmg + GitHub Release notes (includes Open Anyway steps)
 

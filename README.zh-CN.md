@@ -6,7 +6,7 @@
 
 灵感来自 [MDView](https://www.mdview.cn/)。
 
-**当前版本：v0.3.0** · [Releases](https://github.com/ijaa/mdeye/releases)
+**当前版本：v0.4.0** · [Releases](https://github.com/ijaa/mdeye/releases)
 
 **语言：** [English](README.md) | 中文
 
@@ -85,8 +85,8 @@ npm test
 ./scripts/ci-xcodebuild.sh
 # → build/mdeye.app（强制 arm64 + x86_64）
 
-VERSION=0.3.0 ./scripts/package-dmg.sh
-# → build/mdeye-0.3.0.dmg
+VERSION=0.4.0 ./scripts/package-dmg.sh
+# → build/mdeye-0.4.0.dmg
 ```
 
 ### 无 Xcode
@@ -200,7 +200,7 @@ Static reader (IIFE app.js，禁止 type=module)
 
 ## 版本与发布
 
-- 版本号：`App/Info.plist` 的 `CFBundleShortVersionString` / `CFBundleVersion`（当前 **0.3.0 / 11**）
+- 版本号：`App/Info.plist` 的 `CFBundleShortVersionString` / `CFBundleVersion`（当前 **0.4.0 / 12**）
 - CI：push → 构建 + 结构门禁（IIFE、通用二进制、图标路径）
 - Release：tag `v*` → dmg + GitHub Release 说明（含「仍要打开」）
 
