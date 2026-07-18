@@ -189,8 +189,8 @@ Static reader (IIFE app.js，禁止 type=module)
 | `scripts/package-dmg.sh` | 未签名 dmg |
 | `scripts/build-icon.sh` | 生成 `AppIcon.icns` |
 | `scripts/process-icon-alpha.py` | JPEG 黑角 → 透明 PNG（需本地 Pillow） |
-| `scripts/verify-open.sh` | 冷/热打开渲染冒烟 |
-| `scripts/smoke-open.sh` | 轻量打开检查 |
+| `scripts/verify-open.sh` | 冷/热打开渲染冒烟（本机 GUI；会装入 /Applications） |
+| `scripts/ci-selftest.sh` | 无头 `--selftest` 渲染自检（无需 GUI；CI 用） |
 
 ---
 

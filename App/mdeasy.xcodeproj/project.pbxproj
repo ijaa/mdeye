@@ -18,6 +18,7 @@
 		A1000000000000000000000A /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* main.swift */; };
 		A1000000000000000000000B /* AppSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* AppSchemeHandler.swift */; };
 		A1000000000000000000000D /* SelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* SelfTest.swift */; };
+		A1000000000000000000000E /* PathSandbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* PathSandbox.swift */; };
 		A10000000000000000000008 /* Resources in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* Resources */; };
 		A1000000000000000000000C /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* AppIcon.icns */; };
 /* End PBXBuildFile section */
@@ -34,6 +35,7 @@
 		A2000000000000000000000C /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A2000000000000000000000D /* AppSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchemeHandler.swift; sourceTree = "<group>"; };
 		A2000000000000000000000F /* SelfTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfTest.swift; sourceTree = "<group>"; };
+		A20000000000000000000010 /* PathSandbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathSandbox.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources; sourceTree = "<group>"; };
 		A2000000000000000000000E /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		A20000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -76,6 +78,7 @@
 				A2000000000000000000000C /* main.swift */,
 				A2000000000000000000000D /* AppSchemeHandler.swift */,
 				A2000000000000000000000F /* SelfTest.swift */,
+				A20000000000000000000010 /* PathSandbox.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -164,6 +167,7 @@
 				A1000000000000000000000A /* main.swift in Sources */,
 				A1000000000000000000000B /* AppSchemeHandler.swift in Sources */,
 				A1000000000000000000000D /* SelfTest.swift in Sources */,
+				A1000000000000000000000E /* PathSandbox.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

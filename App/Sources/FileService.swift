@@ -55,16 +55,12 @@ enum FileService {
 
     /// Resolve a relative asset path against baseDir; reject path escape.
     static func resolveAsset(baseDir: String, relative: String) -> URL? {
-        let base = URL(fileURLWithPath: baseDir, isDirectory: true).standardizedFileURL
-        let trimmed = relative.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let candidate = base.appendingPathComponent(trimmed).standardizedFileURL
-        let basePath = base.path
-        let candidatePath = candidate.path
-        guard candidatePath == basePath || candidatePath.hasPrefix(basePath + "/") else {
+        let base = URL(fileURLWithPath: baseDir, isDirectory: true)
+        guard let candidate = PathSandbox.join(base: base, relative: relative) else {
             return nil
         }
         var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: candidatePath, isDirectory: &isDir), !isDir.boolValue else {
+        guard FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDir), !isDir.boolValue else {
             return nil
         }
         return candidate

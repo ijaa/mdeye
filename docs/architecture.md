@@ -245,8 +245,8 @@ mdeasy/
 │   ├── package-dmg.sh
 │   ├── build-icon.sh
 │   ├── process-icon-alpha.py
-│   ├── verify-open.sh
-│   └── smoke-open.sh
+│   ├── verify-open.sh        # 本机 GUI 烟测
+│   └── ci-selftest.sh        # 无头 selftest（CI 用）
 ├── fixtures/sample.md
 ├── .github/workflows/{ci,release}.yml
 ├── docs/architecture.md

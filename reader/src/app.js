@@ -62,7 +62,13 @@ function renderOutline(items) {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       const el = document.getElementById(a.dataset.id);
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        // The smooth-scroll emits many scroll events; updateActiveOutline ties active
+        // to scroll position, so it'll converge — but nudge it now so the clicked
+        // entry is reflected immediately rather than a beat later.
+        updateActiveOutline();
+      }
     });
   });
 }
@@ -94,16 +100,21 @@ function updateActiveOutline() {
 
 function ensureMermaid() {
   if (state.mermaidReady) return mermaid;
-  const dark = state.theme === "dark";
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: "strict",
-    theme: dark ? "dark" : "default",
-    fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
-  });
+  mermaid.initialize(mermaidConfig());
   window.mermaid = mermaid;
   state.mermaidReady = true;
   return mermaid;
+}
+
+// Single source for mermaid init/theme config. theme follows the dark family only in
+// the dark theme; light/sepia/green all render with the default (light) mermaid theme.
+function mermaidConfig() {
+  return {
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: state.theme === "dark" ? "dark" : "default",
+    fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+  };
 }
 
 async function renderMermaidBlocks() {
@@ -121,13 +132,8 @@ async function renderMermaidBlocks() {
     return;
   }
 
-  const dark = state.theme === "dark";
-  m.initialize({
-    startOnLoad: false,
-    securityLevel: "strict",
-    theme: dark ? "dark" : "default",
-    fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
-  });
+  // Re-apply theme so a mid-session theme switch re-skins existing diagrams.
+  m.initialize(mermaidConfig());
 
   try {
     await m.run({ nodes, suppressErrors: true });

@@ -50,20 +50,11 @@ final class AppSchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
 
     static func resolve(root: URL, relative: String) -> URL? {
-        let base = root.standardizedFileURL
-        let cleaned = relative
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            .replacingOccurrences(of: "\\", with: "/")
-        // reject .. escape
-        if cleaned.split(separator: "/").contains("..") { return nil }
-        let candidate = base.appendingPathComponent(cleaned).standardizedFileURL
-        let basePath = base.path
-        let candidatePath = candidate.path
-        guard candidatePath == basePath || candidatePath.hasPrefix(basePath + "/") else {
+        guard let candidate = PathSandbox.join(base: root, relative: relative) else {
             return nil
         }
         var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: candidatePath, isDirectory: &isDir), !isDir.boolValue else {
+        guard FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDir), !isDir.boolValue else {
             return nil
         }
         return candidate

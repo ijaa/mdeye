@@ -189,8 +189,8 @@ More detail: [docs/architecture.md](docs/architecture.md)
 | `scripts/package-dmg.sh` | Unsigned dmg |
 | `scripts/build-icon.sh` | Generate `AppIcon.icns` |
 | `scripts/process-icon-alpha.py` | JPEG black corners → transparent PNG (needs Pillow) |
-| `scripts/verify-open.sh` | Cold/warm open render smoke test |
-| `scripts/smoke-open.sh` | Lightweight open check |
+| `scripts/verify-open.sh` | Cold/warm open render smoke test (local GUI; installs into /Applications) |
+| `scripts/ci-selftest.sh` | Headless `--selftest` render self-check (no GUI; CI) |
 
 ---
 
