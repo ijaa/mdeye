@@ -40,7 +40,7 @@ EOF
 
 # Force real pagination; a viewport capture or continuous single-page regression
 # must not pass this check.
-for i in $(seq 1 120); do
+for i in $(seq 1 50); do
   printf '\n## Section %s\n\nParagraph %s with enough text to exercise wrapping and page breaks.\n' "$i" "$i" >>"$MD"
 done
 

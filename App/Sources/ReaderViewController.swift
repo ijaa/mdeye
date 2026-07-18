@@ -521,6 +521,8 @@ final class PDFExportCoordinator: NSObject, WKNavigationDelegate, WKScriptMessag
     private let assetHandler = AssetSchemeHandler()
 
     private var webView: WKWebView?
+    private var printWindow: NSWindow?
+    private var printOperation: NSPrintOperation?
     private var timeoutWorkItem: DispatchWorkItem?
     private var didSendDocument = false
     private var didRequestPrintPreparation = false
@@ -557,6 +559,18 @@ final class PDFExportCoordinator: NSObject, WKNavigationDelegate, WKScriptMessag
         let webView = WKWebView(frame: NSRect(origin: .zero, size: Self.a4Size), configuration: configuration)
         webView.navigationDelegate = self
         self.webView = webView
+
+        // WKWebView printing expects a view hierarchy. Keep it attached to a borderless,
+        // never-shown window so pagination works without mutating or covering the reader window.
+        let printWindow = NSWindow(
+            contentRect: NSRect(origin: .zero, size: Self.a4Size),
+            styleMask: .borderless,
+            backing: .buffered,
+            defer: false
+        )
+        printWindow.isReleasedWhenClosed = false
+        printWindow.contentView = webView
+        self.printWindow = printWindow
 
         let timeout = DispatchWorkItem { [weak self] in
             self?.finish(.failure(ExportError.timedOut))
@@ -644,7 +658,9 @@ final class PDFExportCoordinator: NSObject, WKNavigationDelegate, WKScriptMessag
     }
 
     private func printPDF() {
-        guard let webView, !isFinished else { return }
+        guard let webView, let printWindow, !isFinished else { return }
+        timeoutWorkItem?.cancel()
+        timeoutWorkItem = nil
 
         let printInfo = NSPrintInfo.shared.copy() as! NSPrintInfo
         printInfo.orientation = .portrait
@@ -664,8 +680,24 @@ final class PDFExportCoordinator: NSObject, WKNavigationDelegate, WKScriptMessag
         let operation = webView.printOperation(with: printInfo)
         operation.showsPrintPanel = false
         operation.showsProgressPanel = false
+        operation.canSpawnSeparateThread = true
+        printOperation = operation
+        operation.runModal(
+            for: printWindow,
+            delegate: self,
+            didRun: #selector(printOperationDidRun(_:success:contextInfo:)),
+            contextInfo: nil
+        )
+    }
 
-        guard operation.run() else {
+    @objc private func printOperationDidRun(
+        _ operation: NSPrintOperation,
+        success: Bool,
+        contextInfo: UnsafeMutableRawPointer?
+    ) {
+        guard !isFinished else { return }
+        printOperation = nil
+        guard success else {
             finish(.failure(ExportError.printFailed))
             return
         }
@@ -693,6 +725,10 @@ final class PDFExportCoordinator: NSObject, WKNavigationDelegate, WKScriptMessag
         webView?.navigationDelegate = nil
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "mdeye")
         webView = nil
+        printWindow?.contentView = nil
+        printWindow?.close()
+        printWindow = nil
+        printOperation = nil
         try? FileManager.default.removeItem(at: temporaryURL)
         completion(result)
     }
