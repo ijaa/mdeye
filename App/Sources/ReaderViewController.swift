@@ -695,6 +695,12 @@ final class PDFExportCoordinator: NSObject, WKNavigationDelegate, WKScriptMessag
         success: Bool,
         contextInfo: UnsafeMutableRawPointer?
     ) {
+        DispatchQueue.main.async { [weak self] in
+            self?.completePrintOperation(success: success)
+        }
+    }
+
+    private func completePrintOperation(success: Bool) {
         guard !isFinished else { return }
         printOperation = nil
         guard success else {
