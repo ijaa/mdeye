@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- CSP must allow the custom scheme mdeasy-app: (reader UI) and mdeasy-asset: (local images). -->
+    <!-- CSP must allow the custom scheme mdeye-app: (reader UI) and mdeye-asset: (local images). -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self' mdeasy-app:; style-src 'self' mdeasy-app: 'unsafe-inline'; img-src 'self' mdeasy-app: mdeasy-asset: data: blob:; font-src 'self' mdeasy-app: data:; connect-src 'none'; frame-src 'none'; base-uri 'none';"
+      content="default-src 'none'; script-src 'self' mdeye-app:; style-src 'self' mdeye-app: 'unsafe-inline'; img-src 'self' mdeye-app: mdeye-asset: data: blob:; font-src 'self' mdeye-app: data:; connect-src 'none'; frame-src 'none'; base-uri 'none';"
     />
-    <title>mdeasy</title>
+    <title>MDEye</title>
     <link rel="stylesheet" href="styles/themes.css" />
     <link rel="stylesheet" href="styles/reader.css" />
     <link rel="stylesheet" href="styles/hljs.css" />
@@ -19,7 +19,7 @@
       <main id="main">
         <header id="toolbar" class="toolbar">
           <button type="button" id="btn-outline" title="Toggle outline (⌘B)">☰</button>
-          <span id="doc-title" class="doc-title">mdeasy</span>
+          <span id="doc-title" class="doc-title">MDEye</span>
           <span class="spacer"></span>
           <select id="theme-select" title="Theme" aria-label="Theme">
             <option value="light">Light</option>
@@ -30,7 +30,7 @@
         </header>
         <article id="content" class="markdown-body empty">
           <div class="empty-state">
-            <h1>mdeasy</h1>
+            <h1>MDEye</h1>
             <p>Open a Markdown file to start reading.</p>
             <p class="hint">⌘O open · drag & drop · double-click .md</p>
           </div>

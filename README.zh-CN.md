@@ -1,4 +1,4 @@
-# mdeasy
+# MDEye
 
 本地优先的 **macOS Markdown 阅读器**（不是编辑器 / 笔记库）。
 
@@ -6,7 +6,7 @@
 
 灵感来自 [MDView](https://www.mdview.cn/)。
 
-**当前版本：v0.3.0** · [Releases](https://github.com/ijaa/mdeasy/releases)
+**当前版本：v0.3.0** · [Releases](https://github.com/ijaa/mdeye/releases)
 
 **语言：** [English](README.md) | 中文
 
@@ -30,20 +30,20 @@
 
 ## 安装（自用 · 未签名）
 
-1. 从 [Releases](https://github.com/ijaa/mdeasy/releases) 下载 `mdeasy-x.y.z.dmg`
-2. 将 `mdeasy.app` 拖到 **应用程序**
+1. 从 [Releases](https://github.com/ijaa/mdeye/releases) 下载 `mdeye-x.y.z.dmg`
+2. 将 `mdeye.app` 拖到 **应用程序**
 3. 首次打开：若被拦截 → **系统设置 → 隐私与安全性 → 仍要打开**
 4. 设为默认 Markdown 应用（任选其一）：
 
 ### A. 应用内（推荐）
 
-菜单 **mdeasy → Set as Default Markdown App…**
+菜单 **MDEye → Set as Default Markdown App…**
 
 ### B. Finder（最稳妥）
 
 1. 选中任意 `.md`
 2. **显示简介**（`⌘I`）
-3. **打开方式 → mdeasy → 全部更改…**
+3. **打开方式 → MDEye → 全部更改…**
 
 ---
 
@@ -83,10 +83,10 @@ npm test
 ./scripts/build-reader.sh
 ./scripts/sync-reader-to-app.sh
 ./scripts/ci-xcodebuild.sh
-# → build/mdeasy.app（强制 arm64 + x86_64）
+# → build/mdeye.app（强制 arm64 + x86_64）
 
 VERSION=0.3.0 ./scripts/package-dmg.sh
-# → build/mdeasy-0.3.0.dmg
+# → build/mdeye-0.3.0.dmg
 ```
 
 ### 无 Xcode
@@ -104,14 +104,14 @@ git push origin v0.2.x
 
 ```bash
 # 本地有 Pillow 时，可从 JPEG 自动抠黑边为透明再生成 icns：
-./scripts/build-icon.sh ~/Downloads/mdeasy-icon.jpeg
-# → App/AppIcon.icns 与 App/Assets/mdeasy-icon-transparent.png
+./scripts/build-icon.sh ~/Downloads/mdeye-icon.jpeg
+# → App/AppIcon.icns 与 App/Assets/mdeye-icon-transparent.png
 ```
 
 图标必须落在包内：
 
 ```text
-mdeasy.app/Contents/Resources/AppIcon.icns
+mdeye.app/Contents/Resources/AppIcon.icns
 ```
 
 （不能嵌套在 `Contents/Resources/Resources/` 下。）
@@ -128,8 +128,8 @@ killall Dock Finder
 安装 app 后：
 
 ```bash
-./scripts/verify-open.sh /path/to/mdeasy.app
-# 成功时会写 /tmp/mdeasy-last-shown.json（doc-shown 戳记）
+./scripts/verify-open.sh /path/to/mdeye.app
+# 成功时会写 /tmp/mdeye-last-shown.json（doc-shown 戳记）
 ```
 
 ---
@@ -143,7 +143,7 @@ App/
   AppIcon.icns       # 扁平资源 → Contents/Resources/AppIcon.icns
   Assets/            # logo 源图、透明 PNG 缓存
   Info.plist
-  mdeasy.xcodeproj/
+  mdeye.xcodeproj/
 reader/              # 前端源码（markdown-it + mermaid + esbuild IIFE）
 scripts/             # 构建 / 同步 / 图标 / dmg / 渲染自检
 fixtures/            # 样例 md
@@ -159,8 +159,8 @@ README.zh-CN.md      # 中文
 Swift (AppKit)
   · main.swift 显式 NSApplication.run（另：--selftest 无头 CI 自检模式）
   · 打开文件：open urls / openFile / openFiles（单文件：仅渲染最后一个 path）
-  · mdeasy-app:// 加载 UI（AppSchemeHandler）
-  · mdeasy-asset:// 提供本地图片（AssetSchemeHandler）
+  · mdeye-app:// 加载 UI（AppSchemeHandler）
+  · mdeye-asset:// 提供本地图片（AssetSchemeHandler）
   · PathSandbox：两 handler 共用的相对路径拼接 + `..` 防护
   · WKScriptMessageHandler 桥接
   · PDF 导出走 WKWebView.createPDF（不经 JS 拼 HTML、不经桥接）
@@ -173,7 +173,7 @@ Static reader (IIFE app.js，禁止 type=module)
 **重要实现约束（踩坑结论）：**
 
 1. WKWebView 下 **不要用 ESM `type=module` + chunks**（`file://` / 分片加载会失败 → 正文空白）
-2. 使用 **单文件 classic script（IIFE）** + **`mdeasy-app://`**
+2. 使用 **单文件 classic script（IIFE）** + **`mdeye-app://`**
 3. 冷/热打开要保留 `latestDoc` 并在 JS ready / 重试后推送
 4. 图标必须在 `Contents/Resources/AppIcon.icns`，且圆角外需 **透明**
 5. 单文件阅读器：只渲染最后打开的 path，不做多窗口/标签

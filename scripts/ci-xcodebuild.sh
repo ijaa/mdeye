@@ -15,10 +15,10 @@ mkdir -p "$DERIVED"
 # Ensure flat AppIcon.icns exists. Prefer committed asset; rebuild only if missing.
 if [[ ! -f "$APP_DIR/AppIcon.icns" ]]; then
   chmod +x "$ROOT/scripts/build-icon.sh" "$ROOT/scripts/process-icon-alpha.py" 2>/dev/null || true
-  if [[ -f "$APP_DIR/Assets/mdeasy-icon-transparent.png" ]]; then
-    "$ROOT/scripts/build-icon.sh" "$APP_DIR/Assets/mdeasy-icon-transparent.png"
-  elif [[ -f "$APP_DIR/Assets/mdeasy-logo.jpeg" ]]; then
-    "$ROOT/scripts/build-icon.sh" "$APP_DIR/Assets/mdeasy-logo.jpeg"
+  if [[ -f "$APP_DIR/Assets/mdeye-icon-transparent.png" ]]; then
+    "$ROOT/scripts/build-icon.sh" "$APP_DIR/Assets/mdeye-icon-transparent.png"
+  elif [[ -f "$APP_DIR/Assets/mdeye-logo.jpeg" ]]; then
+    "$ROOT/scripts/build-icon.sh" "$APP_DIR/Assets/mdeye-logo.jpeg"
   else
     echo "ERROR: AppIcon.icns missing and no logo source" >&2
     exit 1
@@ -52,8 +52,8 @@ PY
 
 echo "==> xcodebuild ($CONFIG) ARCHS=[$ARCHS_VALUE]"
 xcodebuild \
-  -project "$APP_DIR/mdeasy.xcodeproj" \
-  -scheme mdeasy \
+  -project "$APP_DIR/mdeye.xcodeproj" \
+  -scheme mdeye \
   -configuration "$CONFIG" \
   -derivedDataPath "$DERIVED" \
   -destination 'generic/platform=macOS' \
@@ -64,17 +64,17 @@ xcodebuild \
   CODE_SIGN_IDENTITY=- \
   build
 
-APP_PATH="$(find "$DERIVED/Build/Products/$CONFIG" -name 'mdeasy.app' -maxdepth 2 | head -n1)"
+APP_PATH="$(find "$DERIVED/Build/Products/$CONFIG" -name 'mdeye.app' -maxdepth 2 | head -n1)"
 if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
-  echo "mdeasy.app not found under $DERIVED" >&2
+  echo "mdeye.app not found under $DERIVED" >&2
   exit 1
 fi
 
-OUT_APP="$ROOT/build/mdeasy.app"
+OUT_APP="$ROOT/build/mdeye.app"
 rm -rf "$OUT_APP"
 cp -R "$APP_PATH" "$OUT_APP"
 
-BIN="$OUT_APP/Contents/MacOS/mdeasy"
+BIN="$OUT_APP/Contents/MacOS/mdeye"
 
 echo "==> size"
 du -sh "$OUT_APP"

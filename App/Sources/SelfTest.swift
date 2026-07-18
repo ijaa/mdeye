@@ -4,14 +4,14 @@ import WebKit
 /// Headless self-check mode: drive the reader rendering pipeline WITHOUT a window or
 /// WindowServer session, so it can run on a CI macOS runner (no GUI login).
 ///
-/// Invocation: `mdeasy --selftest <path-to.md>`
-/// Flow: locate reader → load `mdeasy-app://reader/index.html` in an offscreen
+/// Invocation: `mdeye --selftest <path-to.md>`
+/// Flow: locate reader → load `mdeye-app://reader/index.html` in an offscreen
 /// WKWebView (no NSWindow) → read the .md via FileService → push {type:"doc"} → wait
-/// for the JS reader to post back `doc-shown` (which writes /tmp/mdeasy-last-shown.json).
+/// for the JS reader to post back `doc-shown` (which writes /tmp/mdeye-last-shown.json).
 /// On success: prints `SELFTEST OK` and exits 0. On timeout / missing stamp: exits 1.
 ///
 /// What this *does* prove: the reader bundle loads, the classic IIFE script registers
-/// `window.__mdeasy`, markdown is received, rendered, and the bridge round-trips end-to-end.
+/// `window.__mdeye`, markdown is received, rendered, and the bridge round-trips end-to-end.
 /// What this does NOT cover: NSSavePanel / PDF export (user-interactive) and anything that
 /// only happens with a real key window — those stay manual.
 final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
@@ -42,7 +42,7 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         config.setURLSchemeHandler(appHandler, forURLScheme: AppSchemeHandler.scheme)
         // Asset scheme isn't exercised in selftest (no images), but register for parity.
         config.setURLSchemeHandler(AssetSchemeHandler(), forURLScheme: AssetSchemeHandler.scheme)
-        config.userContentController.add(self, name: "mdeasy")
+        config.userContentController.add(self, name: "mdeye")
 
         let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), configuration: config)
         wv.navigationDelegate = self
@@ -53,7 +53,7 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             fail("bad reader URL")
             return
         }
-        NSLog("mdeasy: selftest loading %@", url.absoluteString)
+        NSLog("mdeye: selftest loading %@", url.absoluteString)
         wv.load(URLRequest(url: url))
 
         // 30s watchdog: reader cold-load (esp. initial 2.8MB IIFE parse + mermaid) can
@@ -67,7 +67,7 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     private func pushDocOnceReady() {
         guard let webView else { return }
-        webView.evaluateJavaScript("!!(window.__mdeasy && window.__mdeasy.handle)") { [weak self] result, _ in
+        webView.evaluateJavaScript("!!(window.__mdeye && window.__mdeye.handle)") { [weak self] result, _ in
             guard let self else { return }
             if let ok = result as? Bool, ok {
                 self.sendDoc()
@@ -106,7 +106,7 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             var bytes = new Uint8Array(bin.length);
             for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
             var text = new TextDecoder('utf-8').decode(bytes);
-            window.__mdeasy.handle(JSON.parse(text));
+            window.__mdeye.handle(JSON.parse(text));
             return 'ok';
           } catch (e) {
             return 'error:' + (e && e.message ? e.message : String(e));
@@ -130,7 +130,7 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     // MARK: - WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        NSLog("mdeasy: selftest didFinish")
+        NSLog("mdeye: selftest didFinish")
         pushDocOnceReady()
     }
 
@@ -145,18 +145,18 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     // MARK: - WKScriptMessageHandler
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "mdeasy",
+        guard message.name == "mdeye",
               let body = message.body as? [String: Any],
               let type = body["type"] as? String else { return }
         switch type {
         case "ready":
-            NSLog("mdeasy: selftest reader ready v=%@", (body["version"] as? String) ?? "?")
+            NSLog("mdeye: selftest reader ready v=%@", (body["version"] as? String) ?? "?")
             pushDocOnceReady()
         case "doc-shown":
             // The reader proved it rendered. Write the same stamp verify-open.sh polls.
             let path = body["path"] as? String ?? ""
             let chars = (body["chars"] as? Int) ?? (body["chars"] as? Double).map(Int.init) ?? -1
-            NSLog("mdeasy: SELFTEST doc-shown path=%@ chars=%d", path, chars)
+            NSLog("mdeye: SELFTEST doc-shown path=%@ chars=%d", path, chars)
             writeStamp(path: path, chars: chars)
             succeed()
         case "error":
@@ -175,7 +175,7 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             "ts": Date().timeIntervalSince1970,
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]) else { return }
-        let url = URL(fileURLWithPath: "/tmp/mdeasy-last-shown.json")
+        let url = URL(fileURLWithPath: "/tmp/mdeye-last-shown.json")
         try? data.write(to: url, options: .atomic)
     }
 
@@ -189,7 +189,7 @@ final class SelfTest: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private func fail(_ reason: String) {
         guard !finished else { return }
         finished = true
-        NSLog("mdeasy: SELFTEST FAIL %@", reason)
+        NSLog("mdeye: SELFTEST FAIL %@", reason)
         print("SELFTEST FAIL: \(reason)")
         exit(1)
     }

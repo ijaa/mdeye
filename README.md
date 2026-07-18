@@ -1,4 +1,4 @@
-# mdeasy
+# MDEye
 
 Local-first **Markdown reader for macOS** (not an editor / note vault).
 
@@ -6,7 +6,7 @@ Local-first **Markdown reader for macOS** (not an editor / note vault).
 
 Inspired by [MDView](https://www.mdview.cn/).
 
-**Current version: v0.3.0** · [Releases](https://github.com/ijaa/mdeasy/releases)
+**Current version: v0.3.0** · [Releases](https://github.com/ijaa/mdeye/releases)
 
 **Languages:** English | [中文](README.zh-CN.md)
 
@@ -30,20 +30,20 @@ Inspired by [MDView](https://www.mdview.cn/).
 
 ## Install (self-use, unsigned)
 
-1. Download `mdeasy-x.y.z.dmg` from [Releases](https://github.com/ijaa/mdeasy/releases)
-2. Drag `mdeasy.app` into **Applications**
+1. Download `mdeye-x.y.z.dmg` from [Releases](https://github.com/ijaa/mdeye/releases)
+2. Drag `mdeye.app` into **Applications**
 3. First launch: if blocked → **System Settings → Privacy & Security → Open Anyway**
 4. Set as default Markdown app (either):
 
 ### A. In-app (recommended)
 
-Menu **mdeasy → Set as Default Markdown App…**
+Menu **MDEye → Set as Default Markdown App…**
 
 ### B. Finder (most reliable)
 
 1. Select any `.md` file  
 2. **Get Info** (`⌘I`)  
-3. **Open with → mdeasy → Change All…**
+3. **Open with → MDEye → Change All…**
 
 ---
 
@@ -83,10 +83,10 @@ Sync build output into the app bundle resources:
 ./scripts/build-reader.sh
 ./scripts/sync-reader-to-app.sh
 ./scripts/ci-xcodebuild.sh
-# → build/mdeasy.app (forces arm64 + x86_64)
+# → build/mdeye.app (forces arm64 + x86_64)
 
 VERSION=0.3.0 ./scripts/package-dmg.sh
-# → build/mdeasy-0.3.0.dmg
+# → build/mdeye-0.3.0.dmg
 ```
 
 ### Without Xcode
@@ -104,14 +104,14 @@ Prefer a **PNG with transparent outside corners**. JPEG rounded exports often fi
 
 ```bash
 # With Pillow installed, convert JPEG black exterior → transparent, then icns:
-./scripts/build-icon.sh ~/Downloads/mdeasy-icon.jpeg
-# → App/AppIcon.icns and App/Assets/mdeasy-icon-transparent.png
+./scripts/build-icon.sh ~/Downloads/mdeye-icon.jpeg
+# → App/AppIcon.icns and App/Assets/mdeye-icon-transparent.png
 ```
 
 Icon must live at:
 
 ```text
-mdeasy.app/Contents/Resources/AppIcon.icns
+mdeye.app/Contents/Resources/AppIcon.icns
 ```
 
 (Not nested under `Contents/Resources/Resources/`.)
@@ -128,8 +128,8 @@ killall Dock Finder
 After installing the app:
 
 ```bash
-./scripts/verify-open.sh /path/to/mdeasy.app
-# On success writes /tmp/mdeasy-last-shown.json (doc-shown stamp)
+./scripts/verify-open.sh /path/to/mdeye.app
+# On success writes /tmp/mdeye-last-shown.json (doc-shown stamp)
 ```
 
 ---
@@ -143,7 +143,7 @@ App/
   AppIcon.icns       # flat resource → Contents/Resources/AppIcon.icns
   Assets/            # logo source + transparent PNG cache
   Info.plist
-  mdeasy.xcodeproj/
+  mdeye.xcodeproj/
 reader/              # frontend (markdown-it + mermaid + esbuild IIFE)
 scripts/             # build / sync / icon / dmg / render self-tests
 fixtures/            # sample markdown
@@ -159,8 +159,8 @@ README.zh-CN.md      # Chinese
 Swift (AppKit)
   · main.swift explicit NSApplication.run  (also: --selftest headless CI mode)
   · open urls / openFile / openFiles  (single-file: only the last path renders)
-  · mdeasy-app:// loads UI (AppSchemeHandler)
-  · mdeasy-asset:// serves local images (AssetSchemeHandler)
+  · mdeye-app:// loads UI (AppSchemeHandler)
+  · mdeye-asset:// serves local images (AssetSchemeHandler)
   · PathSandbox: shared safe relative-path join + ".." guard for both schemes
   · WKScriptMessageHandler bridge
   · PDF export via WKWebView.createPDF (no JS HTML assembly, no bridge)
@@ -173,7 +173,7 @@ Static reader (IIFE app.js — no type=module)
 **Hard constraints (lessons learned):**
 
 1. Do **not** use ESM `type=module` + chunks under WKWebView (`file://` / chunk load fails → blank body)
-2. Use a **single classic IIFE script** + **`mdeasy-app://`**
+2. Use a **single classic IIFE script** + **`mdeye-app://`**
 3. Keep `latestDoc` across cold/warm open; push after JS ready / retries
 4. Icon must be `Contents/Resources/AppIcon.icns` with **transparent** exterior
 5. Single-file reader: render only the last-opened path; no multi-window/tabs

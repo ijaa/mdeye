@@ -39,7 +39,7 @@
 		A20000000000000000000008 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources; sourceTree = "<group>"; };
 		A2000000000000000000000E /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		A20000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A2000000000000000000000A /* mdeasy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mdeasy.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000A /* mdeye.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mdeye.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,7 +86,7 @@
 		A40000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A2000000000000000000000A /* mdeasy.app */,
+				A2000000000000000000000A /* mdeye.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -94,9 +94,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A50000000000000000000001 /* mdeasy */ = {
+		A50000000000000000000001 /* mdeye */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A70000000000000000000003 /* Build configuration list for PBXNativeTarget "mdeasy" */;
+			buildConfigurationList = A70000000000000000000003 /* Build configuration list for PBXNativeTarget "mdeye" */;
 			buildPhases = (
 				A60000000000000000000001 /* Sources */,
 				A30000000000000000000001 /* Frameworks */,
@@ -106,9 +106,9 @@
 			);
 			dependencies = (
 			);
-			name = mdeasy;
-			productName = mdeasy;
-			productReference = A2000000000000000000000A /* mdeasy.app */;
+			name = mdeye;
+			productName = mdeye;
+			productReference = A2000000000000000000000A /* mdeye.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -121,7 +121,7 @@
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 			};
-			buildConfigurationList = A70000000000000000000001 /* Build configuration list for PBXProject "mdeasy" */;
+			buildConfigurationList = A70000000000000000000001 /* Build configuration list for PBXProject "mdeye" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -134,7 +134,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A50000000000000000000001 /* mdeasy */,
+				A50000000000000000000001 /* mdeye */,
 			);
 		};
 /* End PBXProject section */
@@ -239,8 +239,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MARKETING_VERSION = 0.2.8;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mdeasy.mdeasy;
-				PRODUCT_NAME = mdeasy;
+				PRODUCT_BUNDLE_IDENTIFIER = app.mdeye.mdeye;
+				PRODUCT_NAME = mdeye;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -266,8 +266,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MARKETING_VERSION = 0.2.8;
 				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mdeasy.mdeasy;
-				PRODUCT_NAME = mdeasy;
+				PRODUCT_BUNDLE_IDENTIFIER = app.mdeye.mdeye;
+				PRODUCT_NAME = mdeye;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -275,7 +275,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A70000000000000000000001 /* Build configuration list for PBXProject "mdeasy" */ = {
+		A70000000000000000000001 /* Build configuration list for PBXProject "mdeye" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A90000000000000000000001 /* Debug */,
@@ -284,7 +284,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A70000000000000000000003 /* Build configuration list for PBXNativeTarget "mdeasy" */ = {
+		A70000000000000000000003 /* Build configuration list for PBXNativeTarget "mdeye" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A90000000000000000000003 /* Debug */,

@@ -1,7 +1,7 @@
 import Foundation
 
-/// Shared path-joining guard for our two custom-scheme handlers (mdeasy-app:// and
-/// mdeasy-asset://). Keeps a single, consistent rule: resolve `relative` against
+/// Shared path-joining guard for our two custom-scheme handlers (mdeye-app:// and
+/// mdeye-asset://). Keeps a single, consistent rule: resolve `relative` against
 /// `base`, reject traversal outside the base, return nil otherwise.
 ///
 /// Existence / directory checks stay at call sites (they depend on the caller's

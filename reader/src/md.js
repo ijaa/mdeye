@@ -87,21 +87,21 @@ md.use(anchor, {
 md.use(taskLists, { enabled: true, label: true, labelAfter: true });
 
 /**
- * Rewrite relative image src to mdeasy-asset:// scheme.
- * Absolute http(s)/data/mdeasy-asset left as-is (http blocked by CSP).
+ * Rewrite relative image src to mdeye-asset:// scheme.
+ * Absolute http(s)/data/mdeye-asset left as-is (http blocked by CSP).
  */
 function rewriteImages(html) {
   return html.replace(
     /<img\b([^>]*?)\bsrc=(["'])([^"']+)\2([^>]*)>/gi,
     (full, pre, quote, src, post) => {
       if (
-        /^(https?:|data:|mdeasy-asset:|blob:|file:)/i.test(src) ||
+        /^(https?:|data:|mdeye-asset:|blob:|file:)/i.test(src) ||
         src.startsWith("#")
       ) {
         return full;
       }
       const cleaned = src.replace(/^\.\//, "").replace(/^\/+/, "");
-      const asset = `mdeasy-asset://local/${cleaned}`;
+      const asset = `mdeye-asset://local/${cleaned}`;
       return `<img${pre}src=${quote}${asset}${quote}${post}>`;
     }
   );

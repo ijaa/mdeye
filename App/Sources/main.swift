@@ -6,7 +6,7 @@ import AppKit
 let argv = CommandLine.arguments
 
 // Headless self-check mode for CI (no GUI login / WindowServer required).
-//   mdeasy --selftest <path-to.md>
+//   mdeye --selftest <path-to.md>
 // Drives the reader render pipeline offscreen and exits; see SelfTest.swift.
 if argv.count >= 3, argv[1] == "--selftest" {
     let app = NSApplication.shared

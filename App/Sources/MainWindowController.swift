@@ -11,7 +11,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "mdeasy"
+        window.title = "MDEye"
         window.minSize = NSSize(width: 480, height: 360)
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.fullScreenPrimary, .managed]
@@ -48,10 +48,10 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
-        appMenu.addItem(withTitle: "About mdeasy", action: #selector(showAbout), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About MDEye", action: #selector(showAbout), keyEquivalent: "")
         appMenu.addItem(withTitle: "Set as Default Markdown App…", action: #selector(setAsDefaultApp(_:)), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "Quit mdeasy", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit MDEye", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         let fileMenuItem = NSMenuItem()
         mainMenu.addItem(fileMenuItem)
@@ -149,7 +149,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
             tip.informativeText = """
             1. Select any .md file in Finder
             2. Press ⌘I (Get Info)
-            3. Open with → choose mdeasy
+            3. Open with → choose MDEye
             4. Click “Change All…”
             """
             tip.addButton(withTitle: "OK")
@@ -161,7 +161,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "0.2.0"
         let alert = NSAlert()
-        alert.messageText = "mdeasy"
+        alert.messageText = "MDEye"
         alert.informativeText = """
         Version \(version) (full)
 
@@ -171,7 +171,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         Unsigned self-use build:
         System Settings → Privacy & Security → Open Anyway
 
-        Set as default: mdeasy menu → Set as Default Markdown App…
+        Set as default: MDEye menu → Set as Default Markdown App…
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")

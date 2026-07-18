@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Headless rendering self-check for CI. Runs mdeasy with `--selftest <md>` on a
+# Headless rendering self-check for CI. Runs mdeye with `--selftest <md>` on a
 # runner that has NO GUI login / WindowServer session, and asserts the reader
-# actually rendered by polling /tmp/mdeasy-last-shown.json.
+# actually rendered by polling /tmp/mdeye-last-shown.json.
 # This covers what CI can: the load → IIFE → bridge → render → doc-shown pipeline.
 # It does NOT cover NSSavePanel / PDF export (user-interactive, needs GUI).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="${1:-$ROOT/build/mdeasy.app}"
-BIN="$APP/Contents/MacOS/mdeasy"
+APP="${1:-$ROOT/build/mdeye.app}"
+BIN="$APP/Contents/MacOS/mdeye"
 
 if [[ ! -x "$BIN" ]]; then
   echo "ERROR: $BIN not found / not executable" >&2
@@ -17,10 +17,10 @@ if [[ ! -x "$BIN" ]]; then
 fi
 
 # mktemp needs >=6 trailing X to actually substitute a random suffix.
-MD_BASE="$(mktemp /tmp/mdeasy-selftest.XXXXXX)"
+MD_BASE="$(mktemp /tmp/mdeye-selftest.XXXXXX)"
 rm -f "$MD_BASE"
 MD="$MD_BASE.md"
-trap 'rm -f "$MD" /tmp/mdeasy-last-shown.json' EXIT
+trap 'rm -f "$MD" /tmp/mdeye-last-shown.json' EXIT
 cat >"$MD" <<'EOF'
 # Selftest
 
@@ -40,14 +40,14 @@ graph LR
 ```
 EOF
 
-rm -f /tmp/mdeasy-last-shown.json
+rm -f /tmp/mdeye-last-shown.json
 
 check_stamp() {
   # Returns 0 only if a doc-shown stamp exists for our fixture with non-trivial content.
-  [[ -f /tmp/mdeasy-last-shown.json ]] || return 1
+  [[ -f /tmp/mdeye-last-shown.json ]] || return 1
   local sp sc
-  sp=$(python3 -c 'import json;print(json.load(open("/tmp/mdeasy-last-shown.json")).get("path",""))' 2>/dev/null || true)
-  sc=$(python3 -c 'import json;print(json.load(open("/tmp/mdeasy-last-shown.json")).get("chars",-1))' 2>/dev/null || true)
+  sp=$(python3 -c 'import json;print(json.load(open("/tmp/mdeye-last-shown.json")).get("path",""))' 2>/dev/null || true)
+  sc=$(python3 -c 'import json;print(json.load(open("/tmp/mdeye-last-shown.json")).get("chars",-1))' 2>/dev/null || true)
   if [[ "$sp" == "$MD" && "$sc" -ge 10 ]]; then
     echo "stamp ok path=$sp chars=$sc"
     return 0
@@ -58,7 +58,7 @@ check_stamp() {
 print_failure() {
   echo "FAIL: no matching doc-shown stamp for $MD" >&2
   echo "stamp now:" >&2
-  cat /tmp/mdeasy-last-shown.json 2>/dev/null >&2 || echo "(missing)" >&2
+  cat /tmp/mdeye-last-shown.json 2>/dev/null >&2 || echo "(missing)" >&2
   exit 1
 }
 
@@ -77,7 +77,7 @@ fi
 
 if [[ "$EXITCODE" -ne 0 ]]; then
   echo "FAIL: selftest process exited $EXITCODE without a valid stamp" >&2
-  cat /tmp/mdeasy-last-shown.json 2>/dev/null >&2 || true
+  cat /tmp/mdeye-last-shown.json 2>/dev/null >&2 || true
   exit 1
 fi
 

@@ -49,33 +49,33 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mdeasy-release
+          name: mdeye-release
           path: |
-            build/mdeasy.app
-            build/mdeasy-*.dmg
+            build/mdeye.app
+            build/mdeye-*.dmg
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/mdeasy-*.dmg
+            build/mdeye-*.dmg
           body: |
-            ## mdeasy ${{ steps.ver.outputs.version }} (full)
+            ## MDEye ${{ steps.ver.outputs.version }} (full)
 
             Full offline pack: **GFM + Mermaid + themes + HTML export**.
             Unsigned self-use build (no Apple Developer signing).
 
             ### Install
-            1. Open the dmg / unzip and drag **mdeasy.app** to **Applications**
+            1. Open the dmg / unzip and drag **mdeye.app** to **Applications**
             2. First launch: **System Settings → Privacy & Security → Open Anyway**
-            3. In app: **mdeasy → Set as Default Markdown App…**
-               - Or Finder: select `.md` → Get Info (`⌘I`) → Open with mdeasy → **Change All…**
+            3. In app: **MDEye → Set as Default Markdown App…**
+               - Or Finder: select `.md` → Get Info (`⌘I`) → Open with MDEye → **Change All…**
 
             ### First open (method B)
-            1. Open `mdeasy` (if blocked, dismiss the alert)
+            1. Open `MDEye` (if blocked, dismiss the alert)
             2. **System Settings → Privacy & Security**
-            3. Find the message that **mdeasy** was blocked
+            3. Find the message that **MDEye** was blocked
             4. Click **Open Anyway**, confirm **Open**
 
             Then double-click any `.md` file to read.

@@ -55,17 +55,17 @@ jobs:
       - name: Bundle sanity (icon + universal + no ESM)
         run: |
           chmod +x scripts/*.sh
-          APP=build/mdeasy.app
+          APP=build/mdeye.app
           INDEX=$(find "$APP/Contents/Resources" -name index.html | head -n1)
           APPJS=$(find "$APP/Contents/Resources" -name app.js | head -n1)
           ICON=$(find "$APP/Contents/Resources" -maxdepth 1 -name AppIcon.icns | head -n1)
-          BIN="$APP/Contents/MacOS/mdeasy"
+          BIN="$APP/Contents/MacOS/mdeye"
           test -n "$INDEX" && test -n "$APPJS" && test -n "$ICON" && test -x "$BIN"
           test -f "$APP/Contents/Resources/AppIcon.icns"
           ! test -f "$APP/Contents/Resources/Resources/AppIcon.icns" || echo "note: nested icon still present (ignored)"
           ! grep -q 'type="module"' "$INDEX"
           ! head -c 40 "$APPJS" | grep -q '^import'
-          grep -q '__mdeasy' "$APPJS"
+          grep -q '__mdeye' "$APPJS"
           file "$BIN" | tee /tmp/arch.txt
           grep -q 'x86_64' /tmp/arch.txt
           grep -q 'arm64' /tmp/arch.txt
@@ -75,11 +75,11 @@ jobs:
       - name: Headless render selftest (md → doc-shown)
         run: |
           chmod +x scripts/*.sh
-          xattr -c build/mdeasy.app 2>/dev/null || true
-          ./scripts/ci-selftest.sh build/mdeasy.app
+          xattr -c build/mdeye.app 2>/dev/null || true
+          ./scripts/ci-selftest.sh build/mdeye.app
 
-      - name: Upload mdeasy.app
+      - name: Upload mdeye.app
         uses: actions/upload-artifact@v4
         with:
-          name: mdeasy-app
-          path: build/mdeasy.app
+          name: mdeye-app
+          path: build/mdeye.app

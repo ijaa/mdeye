@@ -1,6 +1,6 @@
 # Hello from fixtures
 
-This is a **sample** Markdown file for mdeasy **full** pack.
+This is a **sample** Markdown file for MDEye **full** pack.
 
 ## Lists
 
@@ -40,7 +40,7 @@ graph LR
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant M as mdeasy
+  participant M as MDEye
   U->>M: Double-click file.md
   M-->>U: Rendered preview
 ```

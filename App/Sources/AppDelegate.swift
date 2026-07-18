@@ -64,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sender.reply(toOpenOrPrint: .success)
     }
 
-    /// Product decision: mdeasy is a single-document reader. When multiple files are
+    /// Product decision: mdeye is a single-document reader. When multiple files are
     /// opened together (Finder multi-select, `open a.md b.md`), render only the last
     /// one instead of looping through each — keeps the UI to exactly one open file
     /// and avoids a storm of redundant latestDoc pushes / re-renders.
@@ -77,14 +77,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let target = cleaned.last else { return }
 
         if let wc = windowController {
-            NSLog("mdeasy: open request → %@%@", cleaned.count > 1 ? "(\(cleaned.count)) " : "", target)
+            NSLog("mdeye: open request → %@%@", cleaned.count > 1 ? "(\(cleaned.count)) " : "", target)
             wc.openFile(path: target)
             wc.showWindow(nil)
             wc.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
         } else {
             pendingPaths.append(target)
-            NSLog("mdeasy: queued open → %@", target)
+            NSLog("mdeye: queued open → %@", target)
         }
     }
 
@@ -92,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let wc = windowController, !pendingPaths.isEmpty else { return }
         let path = pendingPaths.last!
         pendingPaths.removeAll()
-        NSLog("mdeasy: flush queued → %@", path)
+        NSLog("mdeye: flush queued → %@", path)
         wc.openFile(path: path)
         wc.showWindow(nil)
         wc.window?.makeKeyAndOrderFront(nil)

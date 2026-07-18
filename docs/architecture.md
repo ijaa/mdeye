@@ -1,4 +1,4 @@
-# mdeasy Architecture (implementation · v0.3.0)
+# MDEye Architecture (implementation · v0.3.0)
 
 > 中文说明：本文件为技术架构文档（原「技术方案」）。
 
@@ -25,8 +25,8 @@
 | 壳 | **Swift + AppKit + WKWebView** |
 | 前端 | **esbuild 单文件 IIFE**（无 Svelte/React，**无 ESM module**） |
 | Mermaid | **完整内置**（静态 import，打进 `app.js`） |
-| UI 加载 | 自定义协议 **`mdeasy-app://`**（非裸 `file://` 主路径） |
-| 本地图片 | **`mdeasy-asset://`** + baseDir 沙箱 |
+| UI 加载 | 自定义协议 **`mdeye-app://`**（非裸 `file://` 主路径） |
+| 本地图片 | **`mdeye-asset://`** + baseDir 沙箱 |
 | 架构 | **Universal**：`arm64` + `x86_64` |
 | 图标 | `Contents/Resources/AppIcon.icns`；圆角外 **透明** |
 | 编译 | GitHub Actions `macos-14`；本机可无 Xcode |
@@ -59,7 +59,7 @@
 
 ### 1.3 与 MDView
 
-| 维度 | MDView | mdeasy |
+| 维度 | MDView | MDEye |
 |------|--------|--------|
 | 平台 | Win + Android | **仅 macOS** |
 | 结构 | 系统 WebView + 薄壳 | 同构 |
@@ -72,18 +72,18 @@
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  mdeasy.app (Swift / AppKit)                             │
+│  mdeye.app (Swift / AppKit)                             │
 │  main.swift → NSApplication.run                          │
 │  AppDelegate：open urls / openFile / openFiles            │
 │  MainWindowController：菜单、默认应用、主题快捷键          │
 │  ReaderViewController：WKWebView、桥接、latestDoc 重试     │
-│  AppSchemeHandler：mdeasy-app://reader/...                │
-│  AssetSchemeHandler：mdeasy-asset://local/...             │
+│  AppSchemeHandler：mdeye-app://reader/...                │
+│  AssetSchemeHandler：mdeye-asset://local/...             │
 │  PathSandbox：两 handler 共用相对路径拼接 + .. 防护          │
 │  FileService / FileWatcher / DefaultAppService            │
 │  SelfTest：--selftest 无头渲染自检（CI 用）                 │
 └───────────────────────────▲──────────────────────────────┘
-                            │ WKScriptMessageHandler "mdeasy"
+                            │ WKScriptMessageHandler "mdeye"
 ┌───────────────────────────┴──────────────────────────────┐
 │  静态 reader（Contents/Resources/Resources/reader/）       │
 │  index.html  →  <script src="app.js">  （classic，非 module）│
@@ -105,10 +105,10 @@
 
 ```
 双击 xxx.md（多选时只取最后一个 path）
-  → Launch Services 启动 / 激活 mdeasy，传入 path
+  → Launch Services 启动 / 激活 mdeye，传入 path
   → AppDelegate enqueue → ReaderViewController.openFile
   → FileService 读文本 → latestDoc
-  → WKWebView 已 load mdeasy-app://reader/index.html
+  → WKWebView 已 load mdeye-app://reader/index.html
   → JS ready / didFinish / 重试 → 推送 doc
   → markdown-it 渲染；含 mermaid 则 mermaid.run
   → FileWatcher 监听；保存后再次 openFile（保留滚动位置）
@@ -127,7 +127,7 @@
 - Mermaid：静态打入 bundle；主题随 Light/Dark 切换
 - 大纲 H1–H3 + 滚动高亮
 - 四套主题；偏好 `UserDefaults`
-- 本地图片：相对路径 → `mdeasy-asset://`，禁止 `../` 逃逸
+- 本地图片：相对路径 → `mdeye-asset://`，禁止 `../` 逃逸
 - 默认 **不渲染** markdown 原始 HTML（`html: false`）
 
 ### 3.2 系统集成
@@ -135,7 +135,7 @@
 - 菜单：打开、重载、导出（PDF）、Finder、编辑器、大纲、主题、设为默认
 - 拖放打开
 - **单文件语义**：`AppDelegate` 对同时到达的多个文件只渲染最后一个（始终一个文档），不做多窗口/标签
-- 文档类型 `LSHandlerRank = Owner` + 导出 UTI `app.mdeasy.markdown`
+- 文档类型 `LSHandlerRank = Owner` + 导出 UTI `app.mdeye.markdown`
 - `DefaultAppService`：`LSSetDefaultRoleHandlerForContentType`
 - **PDF 导出**：原生 `WKWebView.createPDF(configuration:)` 渲染实时内容（保留当前主题/CSS/Mermaid），分页写 PDF；`NSSavePanel` 收 `.pdf`。不走 JS 拼 HTML、不走桥接
 - Universal Binary 强制门禁
@@ -146,7 +146,7 @@
 | 问题 | 修复 |
 |------|------|
 | 启动无窗口 | `main.swift` 显式 run；`makeKeyAndOrderFront`；reopen；屏外 frame 归位 |
-| 双击有窗口无正文 | 去掉 ESM；IIFE + `mdeasy-app://`；`latestDoc` + ready/重试 |
+| 双击有窗口无正文 | 去掉 ESM；IIFE + `mdeye-app://`；`latestDoc` + ready/重试 |
 | 图标不显示 | icns 扁平拷到 `Contents/Resources/AppIcon.icns` |
 | 圆角黑边 | JPEG 黑角 → 透明 alpha 再生成 icns |
 
@@ -174,11 +174,11 @@
 | `AppDelegate.swift` | 生命周期、打开文件队列 |
 | `MainWindowController.swift` | 窗口与菜单 |
 | `ReaderViewController.swift` | WebView、桥接、推送文档 |
-| `AppSchemeHandler.swift` | `mdeasy-app` |
-| `AssetSchemeHandler.swift` | `mdeasy-asset` |
+| `AppSchemeHandler.swift` | `mdeye-app` |
+| `AssetSchemeHandler.swift` | `mdeye-asset` |
 | `FileService.swift` | 读文件、路径沙箱（经 `PathSandbox`） |
 | `FileWatcher.swift` | 变更热更新 |
-| `PathSandbox.swift` | `mdeasy-app`/`mdeasy-asset` 共用相对路径拼接 + `..` 逃逸防护 |
+| `PathSandbox.swift` | `mdeye-app`/`mdeye-asset` 共用相对路径拼接 + `..` 逃逸防护 |
 | `SelfTest.swift` | `--selftest` 无头渲染自检（CI 用，离屏 `WKWebView`） |
 | `DefaultAppService.swift` | 默认打开方式 |
 | `Preferences.swift` | 主题等偏好 |
@@ -191,22 +191,22 @@
 | Markdown | markdown-it + markdown-it-anchor + markdown-it-task-lists |
 | 高亮 | highlight.js 按需语言 |
 | 图表 | **mermaid** 静态 import |
-| CSP | `default-src 'none'`；script/style 限 `self` 与 `mdeasy-app:`；img 允许 `mdeasy-asset:` / data |
+| CSP | `default-src 'none'`；script/style 限 `self` 与 `mdeye-app:`；img 允许 `mdeye-asset:` / data |
 
 入口：`reader/src/app.js`、`reader/src/md.js` → 产出 `reader/dist/app.js`（约 2.8 MB minify）。
 
 ### 4.3 桥接协议（摘要）
 
-**Swift → JS**（`window.__mdeasy.handle`）：
+**Swift → JS**（`window.__mdeye.handle`）：
 
 - `{ type: "doc", path, baseDir, text, encoding, mtimeMs }`
 - `{ type: "theme", name }`
 - `{ type: "toggle-outline" }`
 
-**JS → Swift**（`webkit.messageHandlers.mdeasy`）：
+**JS → Swift**（`webkit.messageHandlers.mdeye`）：
 
-- `{ type: "ready", version? }`（`version` 由 `build.mjs` 从 `App/Info.plist` 的 `CFBundleShortVersionString` 注入 `__MDEASY_VERSION__`）
-- `{ type: "doc-shown", path, chars, hasMermaid }`（冒烟戳记 `/tmp/mdeasy-last-shown.json`）
+- `{ type: "ready", version? }`（`version` 由 `build.mjs` 从 `App/Info.plist` 的 `CFBundleShortVersionString` 注入 `__MDEYE_VERSION__`）
+- `{ type: "doc-shown", path, chars, hasMermaid }`（冒烟戳记 `/tmp/mdeye-last-shown.json`）
 - `{ type: "set-preference", key, value }`
 - open-in-editor / reveal-in-finder / error
 
@@ -232,17 +232,17 @@ CI 体积门禁默认 **20 MB**（`MAX_APP_KB`，完整包余量）。
 ## 6. 工程结构
 
 ```text
-mdeasy/
+mdeye/
 ├── App/
 │   ├── Sources/*.swift
 │   ├── Resources/reader/     # 提交用 fallback；CI 会重建同步
 │   ├── AppIcon.icns          # 必须扁平参与 Resources 构建阶段
 │   ├── Assets/
-│   │   ├── mdeasy-logo.jpeg
-│   │   └── mdeasy-icon-transparent.png
+│   │   ├── mdeye-logo.jpeg
+│   │   └── mdeye-icon-transparent.png
 │   ├── Info.plist
 │   ├── project.yml           # XcodeGen 可选源
-│   └── mdeasy.xcodeproj/
+│   └── mdeye.xcodeproj/
 ├── reader/
 │   ├── src/{app.js,md.js}
 │   ├── styles/
@@ -279,11 +279,11 @@ mdeasy/
 3. `ci-xcodebuild.sh`：`generic/platform=macOS`，`ARCHS="arm64 x86_64"`  
 4. 门禁：
    - `index.html` **无** `type="module"`
-   - `app.js` 非 ESM 开头、含 `__mdeasy`
+   - `app.js` 非 ESM 开头、含 `__mdeye`
    - 二进制含 **x86_64 与 arm64**
    - 存在 **`Contents/Resources/AppIcon.icns`**
-5. **Headless 自检**：`ci-selftest.sh` 跑 `mdeasy --selftest`，断言 `/tmp/mdeasy-last-shown.json` 匹配 fixture（无 GUI 会话下证渲染管线）  
-6. 上传 artifact `mdeasy-app`
+5. **Headless 自检**：`ci-selftest.sh` 跑 `mdeye --selftest`，断言 `/tmp/mdeye-last-shown.json` 匹配 fixture（无 GUI 会话下证渲染管线）  
+6. 上传 artifact `mdeye-app`
 
 ### 7.2 `release.yml`
 
@@ -318,11 +318,11 @@ mdeasy/
 |------|------|
 | 前端单测 | `reader/test/*.test.mjs`：依赖解析 + `md.js` 纯函数（slugify/CJK、rewriteImages、outline、mermaid、task-list、hljs） |
 | CI 结构门禁 | IIFE、通用架构、图标路径 |
-| CI headless 自检 | `mdeasy --selftest <path.md>`：无 GUI 会话下离屏 WKWebView 走完整渲染管线，写出 doc-shown stamp；`scripts/ci-selftest.sh` 轮询断言 |
-| `verify-open.sh` | 本机 GUI 烟测：冷/热打开；断言 `/tmp/mdeasy-last-shown.json` |
+| CI headless 自检 | `mdeye --selftest <path.md>`：无 GUI 会话下离屏 WKWebView 走完整渲染管线，写出 doc-shown stamp；`scripts/ci-selftest.sh` 轮询断言 |
+| `verify-open.sh` | 本机 GUI 烟测：冷/热打开；断言 `/tmp/mdeye-last-shown.json` |
 | 真机清单 | 双击默认应用、中文路径、断网、Mermaid、主题、**PDF 导出** |
 
-> 自检模式（`--selftest`）：以 `.accessory` 激活策略启动、不开窗、不抢前台，驱动 `WKWebView` 加载 `mdeasy-app://reader/index.html` 并推 `{type:"doc"}`，等 JS 回传 `{type:"doc-shown"}` 后退出。它**只验渲染管线到 doc-shown**；`NSSavePanel`/PDF 导出等用户交互仍需本机或 GUI 烟测覆盖。
+> 自检模式（`--selftest`）：以 `.accessory` 激活策略启动、不开窗、不抢前台，驱动 `WKWebView` 加载 `mdeye-app://reader/index.html` 并推 `{type:"doc"}`，等 JS 回传 `{type:"doc-shown"}` 后退出。它**只验渲染管线到 doc-shown**；`NSSavePanel`/PDF 导出等用户交互仍需本机或 GUI 烟测覆盖。
 
 离线验收：断网冷启动可用；无 CDN；CSP 拒绝远程脚本。
 
@@ -356,7 +356,7 @@ mdeasy/
 
 ## 12. 一句话决策
 
-> **mdeasy = macOS 上的离线 Markdown 阅读壳：Swift 管文件与系统，WKWebView 用 `mdeasy-app://` 加载单文件 IIFE 阅读器；Mermaid 内置；通用二进制；未签名自用「仍要打开」。坚决不做第二 Obsidian，也不再走 ESM 分包与多端。**
+> **mdeye = macOS 上的离线 Markdown 阅读壳：Swift 管文件与系统，WKWebView 用 `mdeye-app://` 加载单文件 IIFE 阅读器；Mermaid 内置；通用二进制；未签名自用「仍要打开」。坚决不做第二 Obsidian，也不再走 ESM 分包与多端。**
 
 ---
 

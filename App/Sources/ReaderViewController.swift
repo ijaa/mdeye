@@ -89,7 +89,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         config.setURLSchemeHandler(appHandler, forURLScheme: AppSchemeHandler.scheme)
         config.setURLSchemeHandler(assetHandler, forURLScheme: AssetSchemeHandler.scheme)
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
-        config.userContentController.add(self, name: "mdeasy")
+        config.userContentController.add(self, name: "mdeye")
 
         let wv = WKWebView(frame: view.bounds, configuration: config)
         wv.autoresizingMask = [.width, .height]
@@ -126,7 +126,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         guard let _ = readerRoot else { return }
         // Load via custom scheme so classic scripts execute reliably.
         guard let url = URL(string: "\(AppSchemeHandler.scheme)://reader/index.html") else { return }
-        NSLog("mdeasy: loading reader %@", url.absoluteString)
+        NSLog("mdeye: loading reader %@", url.absoluteString)
         readerReady = false
         webView.load(URLRequest(url: url))
     }
@@ -154,7 +154,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
                 "mtimeMs": payload.mtimeMs
             ]
             latestDoc = doc
-            NSLog("mdeasy: document ready (%d chars) readerReady=%@", payload.text.count, readerReady ? "yes" : "no")
+            NSLog("mdeye: document ready (%d chars) readerReady=%@", payload.text.count, readerReady ? "yes" : "no")
             pushLatestDocument(reason: "openFile")
         } catch {
             presentError(error.localizedDescription)
@@ -211,7 +211,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     func openInEditor() {
         guard let path = currentPath else { return }
         let url = URL(fileURLWithPath: path)
-        // Avoid recursion: mdeasy is itself a registered Markdown handler, so a plain
+        // Avoid recursion: mdeye is itself a registered Markdown handler, so a plain
         // NSWorkspace.open(url) may re-launch ourselves. Pick an explicit editor app,
         // skipping ourselves; fall back to TextEdit, then Finder reveal.
         let ownBundleId = Bundle.main.bundleIdentifier
@@ -242,10 +242,10 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             // callAsyncJavaScript expects a function body; pass arguments map.
             webView.callAsyncJavaScript(
                 """
-                if (!window.__mdeasy || typeof window.__mdeasy.handle !== 'function') {
+                if (!window.__mdeye || typeof window.__mdeye.handle !== 'function') {
                   return 'no-handler';
                 }
-                window.__mdeasy.handle(payload);
+                window.__mdeye.handle(payload);
                 return 'ok';
                 """,
                 arguments: ["payload": object],
@@ -258,11 +258,11 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
                     if status == "ok" {
                         completion?(nil)
                     } else {
-                        NSLog("mdeasy: bridge status=%@", status)
+                        NSLog("mdeye: bridge status=%@", status)
                         completion?(BridgeError.handlerNotReady)
                     }
                 case .failure(let error):
-                    NSLog("mdeasy: bridge callAsync error: %@", error.localizedDescription)
+                    NSLog("mdeye: bridge callAsync error: %@", error.localizedDescription)
                     self.sendBridgeEventLegacy(object, completion: completion)
                 }
             }
@@ -285,14 +285,14 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         let js = """
         (function(){
           try {
-            if (!window.__mdeasy || typeof window.__mdeasy.handle !== 'function') {
+            if (!window.__mdeye || typeof window.__mdeye.handle !== 'function') {
               return 'no-handler';
             }
             var bin = atob('\(b64)');
             var bytes = new Uint8Array(bin.length);
             for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
             var text = new TextDecoder('utf-8').decode(bytes);
-            window.__mdeasy.handle(JSON.parse(text));
+            window.__mdeye.handle(JSON.parse(text));
             return 'ok';
           } catch (e) {
             return 'error:' + (e && e.message ? e.message : String(e));
@@ -302,13 +302,13 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
 
         webView.evaluateJavaScript(js) { result, error in
             if let error {
-                NSLog("mdeasy: bridge eval error: %@", error.localizedDescription)
+                NSLog("mdeye: bridge eval error: %@", error.localizedDescription)
                 completion?(error)
                 return
             }
             let status = result as? String ?? "unknown"
             if status != "ok" {
-                NSLog("mdeasy: bridge status=%@", status)
+                NSLog("mdeye: bridge status=%@", status)
                 completion?(BridgeError.handlerNotReady)
                 return
             }
@@ -320,7 +320,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         guard let doc = latestDoc else { return }
 
         if !readerReady {
-            NSLog("mdeasy: defer doc push (%@) — reader not ready", reason)
+            NSLog("mdeye: defer doc push (%@) — reader not ready", reason)
             // Still schedule retries in case ready message is delayed/lost.
             scheduleDocRetry(attempt: 1)
             return
@@ -331,7 +331,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             if error != nil {
                 self.scheduleDocRetry(attempt: 1)
             } else {
-                NSLog("mdeasy: doc pushed (%@)", reason)
+                NSLog("mdeye: doc pushed (%@)", reason)
             }
         }
     }
@@ -342,7 +342,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, let doc = self.latestDoc else { return }
             // Probe readiness each retry
-            self.webView?.evaluateJavaScript("!!(window.__mdeasy && window.__mdeasy.handle)") { result, _ in
+            self.webView?.evaluateJavaScript("!!(window.__mdeye && window.__mdeye.handle)") { result, _ in
                 if let ok = result as? Bool, ok {
                     self.readerReady = true
                 }
@@ -351,7 +351,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
                 if err != nil {
                     self.scheduleDocRetry(attempt: attempt + 1)
                 } else {
-                    NSLog("mdeasy: doc pushed on retry #%d", attempt)
+                    NSLog("mdeye: doc pushed on retry #%d", attempt)
                 }
             }
         }
@@ -364,7 +364,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
 
     private func presentError(_ message: String) {
         let alert = NSAlert()
-        alert.messageText = "mdeasy"
+        alert.messageText = "MDEye"
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
@@ -381,16 +381,16 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     // MARK: - WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        NSLog("mdeasy: webView didFinish %@", webView.url?.absoluteString ?? "?")
-        webView.evaluateJavaScript("!!(window.__mdeasy && window.__mdeasy.handle)") { [weak self] result, _ in
+        NSLog("mdeye: webView didFinish %@", webView.url?.absoluteString ?? "?")
+        webView.evaluateJavaScript("!!(window.__mdeye && window.__mdeye.handle)") { [weak self] result, _ in
             if let ok = result as? Bool, ok {
                 self?.readerReady = true
                 self?.pushLatestDocument(reason: "didFinish-probe")
             } else {
-                NSLog("mdeasy: __mdeasy handler missing after didFinish")
+                NSLog("mdeye: __mdeye handler missing after didFinish")
                 // One more delayed probe — script tags may still be evaluating.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    webView.evaluateJavaScript("!!(window.__mdeasy && window.__mdeasy.handle)") { result2, _ in
+                    webView.evaluateJavaScript("!!(window.__mdeye && window.__mdeye.handle)") { result2, _ in
                         if let ok2 = result2 as? Bool, ok2 {
                             self?.readerReady = true
                             self?.pushLatestDocument(reason: "didFinish-delayed")
@@ -402,23 +402,23 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        NSLog("mdeasy: webView didFail %@", error.localizedDescription)
+        NSLog("mdeye: webView didFail %@", error.localizedDescription)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        NSLog("mdeasy: webView provisional fail %@", error.localizedDescription)
+        NSLog("mdeye: webView provisional fail %@", error.localizedDescription)
     }
 
     // MARK: - WKScriptMessageHandler
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "mdeasy",
+        guard message.name == "mdeye",
               let body = message.body as? [String: Any],
               let type = body["type"] as? String else { return }
 
         switch type {
         case "ready":
-            NSLog("mdeasy: reader JS ready v=%@", (body["version"] as? String) ?? windowVersionPlaceholder())
+            NSLog("mdeye: reader JS ready v=%@", (body["version"] as? String) ?? windowVersionPlaceholder())
             readerReady = true
             sendBridgeEvent([
                 "type": "theme",
@@ -429,10 +429,10 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             // Proof that the web reader actually rendered content (not just native open).
             let path = body["path"] as? String ?? ""
             let chars = body["chars"] as? Int ?? (body["chars"] as? Double).map { Int($0) } ?? -1
-            NSLog("mdeasy: DOC_SHOWN path=%@ chars=%d", path, chars)
+            NSLog("mdeye: DOC_SHOWN path=%@ chars=%d", path, chars)
             Self.writeSmokeStamp(path: path, chars: chars)
         case "pong":
-            NSLog("mdeasy: pong %@", String(describing: body["version"]))
+            NSLog("mdeye: pong %@", String(describing: body["version"]))
         case "open-in-editor":
             openInEditor()
         case "reveal-in-finder":
@@ -452,7 +452,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
 
     private func windowVersionPlaceholder() -> String { "?" }
 
-    /// Writes /tmp/mdeasy-last-shown.json so smoke tests can prove content rendered.
+    /// Writes /tmp/mdeye-last-shown.json so smoke tests can prove content rendered.
     private static func writeSmokeStamp(path: String, chars: Int) {
         let payload: [String: Any] = [
             "path": path,
@@ -460,7 +460,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             "ts": Date().timeIntervalSince1970
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]) else { return }
-        let url = URL(fileURLWithPath: "/tmp/mdeasy-last-shown.json")
+        let url = URL(fileURLWithPath: "/tmp/mdeye-last-shown.json")
         try? data.write(to: url, options: .atomic)
     }
 

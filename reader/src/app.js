@@ -16,7 +16,7 @@ const state = {
 
 function post(msg) {
   try {
-    window.webkit?.messageHandlers?.mdeasy?.postMessage(msg);
+    window.webkit?.messageHandlers?.mdeye?.postMessage(msg);
   } catch (err) {
     console.warn("bridge post failed", err);
   }
@@ -39,7 +39,7 @@ function setOutlineOpen(open) {
 }
 
 function basename(path) {
-  if (!path) return "mdeasy";
+  if (!path) return "MDEye";
   const parts = path.split(/[/\\]/);
   return parts[parts.length - 1] || path;
 }
@@ -149,7 +149,7 @@ async function showDoc({ path, text }) {
   const title = basename(path);
   const titleEl = $("#doc-title");
   if (titleEl) titleEl.textContent = title;
-  document.title = `${title} · mdeasy`;
+  document.title = `${title} · MDEye`;
 
   const html = renderMarkdown(state.text);
   const content = $("#content");
@@ -157,9 +157,9 @@ async function showDoc({ path, text }) {
   content.classList.remove("empty");
   content.innerHTML = html;
   // Machine-readable marker for automated smoke tests (and debugging).
-  content.setAttribute("data-mdeasy-path", path || "");
-  content.setAttribute("data-mdeasy-rendered", "1");
-  content.setAttribute("data-mdeasy-chars", String((text || "").length));
+  content.setAttribute("data-mdeye-path", path || "");
+  content.setAttribute("data-mdeye-rendered", "1");
+  content.setAttribute("data-mdeye-chars", String((text || "").length));
   const outline = extractOutlineFromHtml(html);
   renderOutline(outline);
   // Preserve scroll position when the same file is refreshed on disk (external save),
@@ -183,12 +183,12 @@ function showEmpty() {
   state.path = null;
   state.text = "";
   const titleEl = $("#doc-title");
-  if (titleEl) titleEl.textContent = "mdeasy";
-  document.title = "mdeasy";
+  if (titleEl) titleEl.textContent = "MDEye";
+  document.title = "MDEye";
   const content = $("#content");
   if (!content) return;
   content.classList.add("empty");
-  content.innerHTML = `<div class="empty-state"><h1>mdeasy</h1><p>Open a Markdown file to start reading.</p><p class="hint">⌘O open · drag & drop · double-click .md<br/>Menu: mdeasy → Set as Default Markdown App</p></div>`;
+  content.innerHTML = `<div class="empty-state"><h1>MDEye</h1><p>Open a Markdown file to start reading.</p><p class="hint">⌘O open · drag & drop · double-click .md<br/>Menu: MDEye → Set as Default Markdown App</p></div>`;
   renderOutline([]);
 }
 
@@ -198,7 +198,7 @@ function handleNativeEvent(msg) {
     switch (msg.type) {
       case "doc":
         state.baseDir = msg.baseDir;
-        console.info("mdeasy: doc received", msg.path, "chars=", (msg.text || "").length);
+        console.info("mdeye: doc received", msg.path, "chars=", (msg.text || "").length);
         showDoc({ path: msg.path, text: msg.text });
         break;
       case "file-changed":
@@ -211,13 +211,13 @@ function handleNativeEvent(msg) {
         toggleOutline();
         break;
       case "ping":
-        post({ type: "pong", version: window.__mdeasyVersion || "unknown" });
+        post({ type: "pong", version: window.__mdeyeVersion || "unknown" });
         break;
       default:
         break;
     }
   } catch (err) {
-    console.error("mdeasy: handle failed", err);
+    console.error("mdeye: handle failed", err);
     post({ type: "error", message: String(err?.message || err) });
   }
 }
@@ -249,22 +249,22 @@ function bindUi() {
   });
 }
 
-window.__mdeasy = {
+window.__mdeye = {
   handle: handleNativeEvent,
 };
 // Injected at build time from App/Info.plist via esbuild `define`. Keeps the JS
 // "ready" version in sync with the native app version (single source of truth).
-window.__mdeasyVersion = __MDEASY_VERSION__;
+window.__mdeyeVersion = __MDEYE_VERSION__;
 
 bindUi();
 setTheme("light");
 showEmpty();
-post({ type: "ready", version: window.__mdeasyVersion });
-setTimeout(() => post({ type: "ready", version: window.__mdeasyVersion }), 50);
+post({ type: "ready", version: window.__mdeyeVersion });
+setTimeout(() => post({ type: "ready", version: window.__mdeyeVersion }), 50);
 
 // Browser-only preview (no native bridge)
-if (!window.webkit?.messageHandlers?.mdeasy) {
-  const demo = `# mdeasy preview
+if (!window.webkit?.messageHandlers?.mdeye) {
+  const demo = `# MDEye preview
 
 Browser preview of the **IIFE** full pack.
 
@@ -275,7 +275,7 @@ Browser preview of the **IIFE** full pack.
 - Mermaid (bundled)
 
 \`\`\`js
-console.log("hello mdeasy");
+console.log("hello mdeye");
 \`\`\`
 
 | A | B |
@@ -289,5 +289,5 @@ graph LR
 \`\`\`
 `;
   showDoc({ path: "preview.md", text: demo });
-  console.info("mdeasy reader: browser preview mode");
+  console.info("mdeye reader: browser preview mode");
 }

@@ -27,7 +27,7 @@ function copyStatic() {
 
 function writeIndex() {
   // Reuse the committed source index.html directly. It already ships as a classic
-  // (non-module) script with the correct CSP for mdeasy-app:// — no build-time rewrite
+  // (non-module) script with the correct CSP for mdeye-app:// — no build-time rewrite
   // needed. Keeping a single copy avoids the source/produced-HTML divergence trap.
   cpSync(join(__dirname, "index.html"), join(dist, "index.html"));
 }
@@ -48,11 +48,11 @@ async function run() {
     sourcemap: watch,
     outfile: join(dist, "app.js"),
     format: "iife",
-    globalName: "mdeasyReader",
+    globalName: "mdeyeReader",
     target: ["safari14"],
     logLevel: "info",
     define: {
-      __MDEASY_VERSION__: JSON.stringify(APP_VERSION),
+      __MDEYE_VERSION__: JSON.stringify(APP_VERSION),
     },
   };
 

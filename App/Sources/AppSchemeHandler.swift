@@ -2,10 +2,10 @@ import Foundation
 import UniformTypeIdentifiers
 import WebKit
 
-/// Serves the bundled reader UI under mdeasy-app:// so scripts load like a normal origin
+/// Serves the bundled reader UI under mdeye-app:// so scripts load like a normal origin
 /// (avoids file:// + ESM module issues).
 final class AppSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "mdeasy-app"
+    static let scheme = "mdeye-app"
 
     private let root: URL
 
@@ -20,7 +20,7 @@ final class AppSchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
-        // mdeasy-app://reader/index.html  or  mdeasy-app://reader/app.js
+        // mdeye-app://reader/index.html  or  mdeye-app://reader/app.js
         var rel = url.path
         if rel.hasPrefix("/") { rel = String(rel.dropFirst()) }
         if rel.isEmpty { rel = "index.html" }

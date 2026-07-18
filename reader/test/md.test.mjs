@@ -25,10 +25,10 @@ test("slugify: CJK headings keep characters (no garbling)", () => {
   assert.match(html, /<h2[^>]*\bid="第二级"/i);
 });
 
-test("rewriteImages: relative src is rewritten to mdeasy-asset://local/", () => {
+test("rewriteImages: relative src is rewritten to mdeye-asset://local/", () => {
   const html = renderMarkdown("![alt](img/sub/pic.png)");
   assert.ok(
-    html.includes('src="mdeasy-asset://local/img/sub/pic.png"'),
+    html.includes('src="mdeye-asset://local/img/sub/pic.png"'),
     `expected rewritten asset src, got: ${html}`
   );
 });
@@ -40,16 +40,16 @@ test("rewriteImages: http(s)/data/img-with-hash left untouched", () => {
   assert.ok(html.includes('src="https://x/y.png"'));
   assert.ok(html.includes('src="data:image/png;base64,QQ=="'));
   assert.ok(html.includes('src="#anchor"'));
-  assert.ok(!html.includes("mdeasy-asset://local/https"));
-  assert.ok(!html.includes("mdeasy-asset://local/data:"));
-  assert.ok(!html.includes("mdeasy-asset://local/#anchor"));
+  assert.ok(!html.includes("mdeye-asset://local/https"));
+  assert.ok(!html.includes("mdeye-asset://local/data:"));
+  assert.ok(!html.includes("mdeye-asset://local/#anchor"));
 });
 
 test("rewriteImages: leading ./ and duplicate slashes normalized", () => {
   const html = renderMarkdown("![x](./dir//a.png)");
   assert.ok(
-    html.includes('src="mdeasy-asset://local/dir//a.png"') ||
-      html.includes('src="mdeasy-asset://local/dir/a.png"'),
+    html.includes('src="mdeye-asset://local/dir//a.png"') ||
+      html.includes('src="mdeye-asset://local/dir/a.png"'),
     `got: ${html}`
   );
 });

@@ -6,7 +6,7 @@ final class FileWatcher {
     private var source: DispatchSourceFileSystemObject?
     private var fd: Int32 = -1
     private var watchedPath: String?
-    private let queue = DispatchQueue(label: "app.mdeasy.filewatcher")
+    private let queue = DispatchQueue(label: "app.mdeye.filewatcher")
     private var debounceWork: DispatchWorkItem?
 
     func watch(path: String) {

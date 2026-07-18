@@ -6,13 +6,13 @@ enum DefaultAppService {
     /// Claim default handler for Markdown types / extensions.
     @discardableResult
     static func setAsDefaultMarkdownViewer() -> (ok: Bool, message: String) {
-        let bundleId = Bundle.main.bundleIdentifier ?? "app.mdeasy.mdeasy"
+        let bundleId = Bundle.main.bundleIdentifier ?? "app.mdeye.mdeye"
         var claimed: [String] = []
         var failed: [String] = []
 
         // Prefer markdown-specific UTIs; avoid claiming all plain text globally.
         let primaryTypes = [
-            "app.mdeasy.markdown",
+            "app.mdeye.markdown",
             "net.daringfireball.markdown",
             "net.ika.markdown",
             "com.unknown.md",
@@ -70,15 +70,15 @@ enum DefaultAppService {
         let uniqueClaimed = Array(Set(claimed)).sorted()
         if !uniqueClaimed.isEmpty {
             let message = """
-            mdeasy registered for Markdown types:
+            MDEye registered for Markdown types:
             \(uniqueClaimed.joined(separator: ", "))
 
             If double-click still opens another app:
             1. Select a .md file in Finder
             2. File → Get Info (⌘I)
-            3. Open with → mdeasy → Change All…
+            3. Open with → MDEye → Change All…
 
-            Tip: keep mdeasy.app in /Applications for reliable association.
+            Tip: keep mdeye.app in /Applications for reliable association.
             """
             return (true, message)
         }
@@ -89,7 +89,7 @@ enum DefaultAppService {
         Use Finder (always works):
         1. Select a .md file
         2. File → Get Info (⌘I)
-        3. Open with → mdeasy → Change All…
+        3. Open with → MDEye → Change All…
         """
         return (false, message)
     }

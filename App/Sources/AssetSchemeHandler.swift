@@ -4,7 +4,7 @@ import WebKit
 
 /// Serves local images/assets under the current markdown baseDir only.
 final class AssetSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "mdeasy-asset"
+    static let scheme = "mdeye-asset"
 
     var baseDir: URL?
 
@@ -14,7 +14,7 @@ final class AssetSchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
-        // mdeasy-asset://local/relative/path.png
+        // mdeye-asset://local/relative/path.png
         let rel = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard let baseDir,
               let fileURL = FileService.resolveAsset(baseDir: baseDir.path, relative: rel) else {

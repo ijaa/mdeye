@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A50000000000000000000001"
-               BuildableName = "mdeasy.app"
-               BlueprintName = "mdeasy"
-               ReferencedContainer = "container:mdeasy.xcodeproj">
+               BuildableName = "mdeye.app"
+               BlueprintName = "mdeye"
+               ReferencedContainer = "container:mdeye.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A50000000000000000000001"
-            BuildableName = "mdeasy.app"
-            BlueprintName = "mdeasy"
-            ReferencedContainer = "container:mdeasy.xcodeproj">
+            BuildableName = "mdeye.app"
+            BlueprintName = "mdeye"
+            ReferencedContainer = "container:mdeye.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A50000000000000000000001"
-            BuildableName = "mdeasy.app"
-            BlueprintName = "mdeasy"
-            ReferencedContainer = "container:mdeasy.xcodeproj">
+            BuildableName = "mdeye.app"
+            BlueprintName = "mdeye"
+            ReferencedContainer = "container:mdeye.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

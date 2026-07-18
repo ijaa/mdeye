@@ -13,7 +13,7 @@
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundleDisplayName</key>
-	<string>mdeasy</string>
+	<string>MDEye</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundlePackageType</key>
@@ -43,7 +43,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>app.mdeasy.markdown</string>
+				<string>app.mdeye.markdown</string>
 				<string>net.daringfireball.markdown</string>
 				<string>net.ika.markdown</string>
 				<string>com.unknown.md</string>
@@ -67,7 +67,7 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
-			<string>app.mdeasy.markdown</string>
+			<string>app.mdeye.markdown</string>
 			<key>UTTypeDescription</key>
 			<string>Markdown Document</string>
 			<key>UTTypeConformsTo</key>
