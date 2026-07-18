@@ -19,6 +19,8 @@
 | 议题 | 决策（已实现） |
 |------|----------------|
 | 产品形态 | 阅读器 only；打开 md 即读 |
+| 单文件 | **始终渲染一个文件**；多选打开只取最后一个，不做多窗口/标签 |
+| 导出 | **仅 PDF**（原生 `WKWebView.createPDF`，保留主题）；不做 HTML 导出 |
 | 平台 | **仅 macOS**（不做 Win / Android） |
 | 壳 | **Swift + AppKit + WKWebView** |
 | 前端 | **esbuild 单文件 IIFE**（无 Svelte/React，**无 ESM module**） |
@@ -77,7 +79,9 @@
 │  ReaderViewController：WKWebView、桥接、latestDoc 重试     │
 │  AppSchemeHandler：mdeasy-app://reader/...                │
 │  AssetSchemeHandler：mdeasy-asset://local/...             │
+│  PathSandbox：两 handler 共用相对路径拼接 + .. 防护          │
 │  FileService / FileWatcher / DefaultAppService            │
+│  SelfTest：--selftest 无头渲染自检（CI 用）                 │
 └───────────────────────────▲──────────────────────────────┘
                             │ WKScriptMessageHandler "mdeasy"
 ┌───────────────────────────┴──────────────────────────────┐
@@ -100,15 +104,15 @@
 ### 2.2 核心用户流程
 
 ```
-双击 xxx.md
+双击 xxx.md（多选时只取最后一个 path）
   → Launch Services 启动 / 激活 mdeasy，传入 path
   → AppDelegate enqueue → ReaderViewController.openFile
   → FileService 读文本 → latestDoc
   → WKWebView 已 load mdeasy-app://reader/index.html
   → JS ready / didFinish / 重试 → 推送 doc
   → markdown-it 渲染；含 mermaid 则 mermaid.run
-  → FileWatcher 监听；保存后再次 openFile
-  → 可选：导出 PDF / 默认应用 / 主题
+  → FileWatcher 监听；保存后再次 openFile（保留滚动位置）
+  → 可选：导出 PDF（WKWebView.createPDF）/ 默认应用 / 主题
 ```
 
 ---
@@ -128,10 +132,12 @@
 
 ### 3.2 系统集成
 
-- 菜单：打开、重载、导出、Finder、编辑器、大纲、主题、设为默认
+- 菜单：打开、重载、导出（PDF）、Finder、编辑器、大纲、主题、设为默认
 - 拖放打开
+- **单文件语义**：`AppDelegate` 对同时到达的多个文件只渲染最后一个（始终一个文档），不做多窗口/标签
 - 文档类型 `LSHandlerRank = Owner` + 导出 UTI `app.mdeasy.markdown`
 - `DefaultAppService`：`LSSetDefaultRoleHandlerForContentType`
+- **PDF 导出**：原生 `WKWebView.createPDF(configuration:)` 渲染实时内容（保留当前主题/CSS/Mermaid），分页写 PDF；`NSSavePanel` 收 `.pdf`。不走 JS 拼 HTML、不走桥接
 - Universal Binary 强制门禁
 - 图标 `CFBundleIconFile = AppIcon`
 
@@ -170,8 +176,10 @@
 | `ReaderViewController.swift` | WebView、桥接、推送文档 |
 | `AppSchemeHandler.swift` | `mdeasy-app` |
 | `AssetSchemeHandler.swift` | `mdeasy-asset` |
-| `FileService.swift` | 读文件、路径沙箱 |
+| `FileService.swift` | 读文件、路径沙箱（经 `PathSandbox`） |
 | `FileWatcher.swift` | 变更热更新 |
+| `PathSandbox.swift` | `mdeasy-app`/`mdeasy-asset` 共用相对路径拼接 + `..` 逃逸防护 |
+| `SelfTest.swift` | `--selftest` 无头渲染自检（CI 用，离屏 `WKWebView`） |
 | `DefaultAppService.swift` | 默认打开方式 |
 | `Preferences.swift` | 主题等偏好 |
 
@@ -197,10 +205,12 @@
 
 **JS → Swift**（`webkit.messageHandlers.mdeasy`）：
 
-- `{ type: "ready", version? }`
+- `{ type: "ready", version? }`（`version` 由 `build.mjs` 从 `App/Info.plist` 的 `CFBundleShortVersionString` 注入 `__MDEASY_VERSION__`）
 - `{ type: "doc-shown", path, chars, hasMermaid }`（冒烟戳记 `/tmp/mdeasy-last-shown.json`）
 - `{ type: "set-preference", key, value }`
 - open-in-editor / reveal-in-finder / error
+
+> **PDF 导出不走桥接**：Swift 直接 `WKWebView.createPDF`，前端无 `request-export`/`export-html` 消息。
 
 推送实现优先 `callAsyncJavaScript`，失败则 base64 `evaluateJavaScript` 回退；未 ready 时保留 `latestDoc` 并重试。
 
@@ -236,7 +246,8 @@ mdeasy/
 ├── reader/
 │   ├── src/{app.js,md.js}
 │   ├── styles/
-│   ├── build.mjs             # IIFE 打包
+│   ├── test/md.test.mjs      # md.js 纯函数单测（node --test）
+│   ├── build.mjs             # IIFE 打包 + 版本注入
 │   └── package.json
 ├── scripts/
 │   ├── build-reader.sh
@@ -263,7 +274,7 @@ mdeasy/
 
 ### 7.1 `ci.yml`
 
-1. Node 构建 reader + 单测  
+1. Node 构建 reader + 单测（`md.js` 纯函数）  
 2. 同步资源  
 3. `ci-xcodebuild.sh`：`generic/platform=macOS`，`ARCHS="arm64 x86_64"`  
 4. 门禁：
@@ -271,7 +282,8 @@ mdeasy/
    - `app.js` 非 ESM 开头、含 `__mdeasy`
    - 二进制含 **x86_64 与 arm64**
    - 存在 **`Contents/Resources/AppIcon.icns`**
-5. 上传 artifact `mdeasy-app`
+5. **Headless 自检**：`ci-selftest.sh` 跑 `mdeasy --selftest`，断言 `/tmp/mdeasy-last-shown.json` 匹配 fixture（无 GUI 会话下证渲染管线）  
+6. 上传 artifact `mdeasy-app`
 
 ### 7.2 `release.yml`
 

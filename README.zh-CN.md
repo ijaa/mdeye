@@ -138,14 +138,14 @@ killall Dock Finder
 
 ```text
 App/
-  Sources/           # Swift：窗口、WKWebView、桥接、文件监听、默认应用
+  Sources/           # Swift：窗口、WKWebView、桥接、文件监听、默认应用、PathSandbox、SelfTest
   Resources/reader/  # 同步后的静态阅读器（index.html + IIFE app.js + css）
   AppIcon.icns       # 扁平资源 → Contents/Resources/AppIcon.icns
   Assets/            # logo 源图、透明 PNG 缓存
   Info.plist
   mdeasy.xcodeproj/
 reader/              # 前端源码（markdown-it + mermaid + esbuild IIFE）
-scripts/             # 构建 / 同步 / 图标 / dmg / 冒烟
+scripts/             # 构建 / 同步 / 图标 / dmg / 渲染自检
 fixtures/            # 样例 md
 .github/workflows/   # ci.yml + release.yml
 docs/architecture.md
@@ -157,11 +157,13 @@ README.zh-CN.md      # 中文
 
 ```text
 Swift (AppKit)
-  · main.swift 显式 NSApplication.run
-  · 打开文件：open urls / openFile / openFiles
+  · main.swift 显式 NSApplication.run（另：--selftest 无头 CI 自检模式）
+  · 打开文件：open urls / openFile / openFiles（单文件：仅渲染最后一个 path）
   · mdeasy-app:// 加载 UI（AppSchemeHandler）
   · mdeasy-asset:// 提供本地图片（AssetSchemeHandler）
+  · PathSandbox：两 handler 共用的相对路径拼接 + `..` 防护
   · WKScriptMessageHandler 桥接
+  · PDF 导出走 WKWebView.createPDF（不经 JS 拼 HTML、不经桥接）
         ↕
 Static reader (IIFE app.js，禁止 type=module)
   · markdown-it GFM + 大纲 + 主题
@@ -174,6 +176,8 @@ Static reader (IIFE app.js，禁止 type=module)
 2. 使用 **单文件 classic script（IIFE）** + **`mdeasy-app://`**
 3. 冷/热打开要保留 `latestDoc` 并在 JS ready / 重试后推送
 4. 图标必须在 `Contents/Resources/AppIcon.icns`，且圆角外需 **透明**
+5. 单文件阅读器：只渲染最后打开的 path，不做多窗口/标签
+6. 导出 **只做 PDF**，原生 `WKWebView.createPDF`，不在 JS 端重新拼装 HTML
 
 更多细节见：[docs/architecture.md](docs/architecture.md)
 

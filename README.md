@@ -138,14 +138,14 @@ After installing the app:
 
 ```text
 App/
-  Sources/           # Swift: window, WKWebView, bridge, file watch, default app
+  Sources/           # Swift: window, WKWebView, bridge, file watch, default app, PathSandbox, SelfTest
   Resources/reader/  # synced static reader (index.html + IIFE app.js + css)
   AppIcon.icns       # flat resource → Contents/Resources/AppIcon.icns
   Assets/            # logo source + transparent PNG cache
   Info.plist
   mdeasy.xcodeproj/
 reader/              # frontend (markdown-it + mermaid + esbuild IIFE)
-scripts/             # build / sync / icon / dmg / smoke tests
+scripts/             # build / sync / icon / dmg / render self-tests
 fixtures/            # sample markdown
 .github/workflows/   # ci.yml + release.yml
 docs/architecture.md
@@ -157,11 +157,13 @@ README.zh-CN.md      # Chinese
 
 ```text
 Swift (AppKit)
-  · main.swift explicit NSApplication.run
-  · open urls / openFile / openFiles
+  · main.swift explicit NSApplication.run  (also: --selftest headless CI mode)
+  · open urls / openFile / openFiles  (single-file: only the last path renders)
   · mdeasy-app:// loads UI (AppSchemeHandler)
   · mdeasy-asset:// serves local images (AssetSchemeHandler)
+  · PathSandbox: shared safe relative-path join + ".." guard for both schemes
   · WKScriptMessageHandler bridge
+  · PDF export via WKWebView.createPDF (no JS HTML assembly, no bridge)
         ↕
 Static reader (IIFE app.js — no type=module)
   · markdown-it GFM + outline + themes
@@ -174,6 +176,8 @@ Static reader (IIFE app.js — no type=module)
 2. Use a **single classic IIFE script** + **`mdeasy-app://`**
 3. Keep `latestDoc` across cold/warm open; push after JS ready / retries
 4. Icon must be `Contents/Resources/AppIcon.icns` with **transparent** exterior
+5. Single-file reader: render only the last-opened path; no multi-window/tabs
+6. Export is **PDF only**, via native `WKWebView.createPDF` — no JS-side HTML re-assembly
 
 More detail: [docs/architecture.md](docs/architecture.md)
 
