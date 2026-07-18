@@ -214,7 +214,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
               });
             })();
             """,
-            arguments: nil,
+            arguments: [:],
             in: nil,
             in: .page
         ) { [weak self] result in
