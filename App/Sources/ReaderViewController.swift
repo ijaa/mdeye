@@ -210,13 +210,10 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
           document.head.appendChild(style);
           // 强制同步 reflow，再读全篇高度。
           void document.documentElement.offsetHeight;
-          var c = document.querySelector('.markdown-body');
           var msg = {
             type: 'export-pdf-measured',
             width: document.documentElement.clientWidth,
-            height: Math.ceil(document.documentElement.scrollHeight),
-            contentScroll: c ? c.scrollHeight : -1,
-            vport: window.innerHeight
+            height: Math.ceil(document.documentElement.scrollHeight)
           };
           try { window.webkit.messageHandlers.mdeye.postMessage(msg); } catch (e) {}
         })();
@@ -227,7 +224,6 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     /// 桥接收到 JS 实测的整篇尺寸后，用其驱动 `createPDF`（rect=全高）分页出 PDF。
     private func handleExportMeasured(_ body: [String: Any]) {
         guard let webView, let url = pendingExportURL else { return }
-        let dbg = "measured width=\(body["width"] ?? "?") height=\(body["height"] ?? "?") contentScroll=\(body["contentScroll"] ?? "?") vport=\(body["vport"] ?? "?")"
         let width: Double
         let height: Double
         if let w = (body["width"] as? Double) ?? (body["width"] as? Int).map(Double.init),
@@ -241,10 +237,10 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             height = Double(webView.bounds.height)
         }
         pendingExportURL = nil
-        renderPDF(on: webView, to: url, width: width, height: height, debugInfo: dbg)
+        renderPDF(on: webView, to: url, width: width, height: height)
     }
 
-    private func renderPDF(on webView: WKWebView, to url: URL, width: Double, height: Double, debugInfo: String) {
+    private func renderPDF(on webView: WKWebView, to url: URL, width: Double, height: Double) {
         let cfg = WKPDFConfiguration()
         cfg.rect = CGRect(x: 0, y: 0, width: width, height: height)
         webView.createPDF(configuration: cfg) { [weak self] (result: Result<Data, Error>) in
@@ -252,9 +248,8 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
                 webView.evaluateJavaScript("document.getElementById('mdeye-print-mode')?.remove()")
                 switch result {
                 case .success(let data):
-                    let wrote = (try? data.write(to: url, options: .atomic)) != nil
-                    // TEMP DEBUG: 导出后弹实测，便于定位"只一屏"根因。定位后移除。
-                    self?.presentError("[PDF DEBUG] wrote=\(wrote) bytes=\(data.count)\nrect w=\(width) h=\(height)\n\n\(debugInfo)")
+                    if (try? data.write(to: url, options: .atomic)) != nil { return }
+                    self?.presentError("PDF export failed: could not write file")
                 case .failure(let error):
                     self?.presentError("PDF export failed: \(error.localizedDescription)")
                 }

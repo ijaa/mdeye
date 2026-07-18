@@ -163,7 +163,7 @@ Swift (AppKit)
   · mdeye-asset:// serves local images (AssetSchemeHandler)
   · PathSandbox: shared safe relative-path join + ".." guard for both schemes
   · WKScriptMessageHandler bridge
-  · PDF export via WKWebView printOperation + @media print CSS (no JS HTML assembly, no bridge)
+  · PDF export via WKWebView.createPDF + injected print-mode CSS + bridge-measured full-height rect (no JS HTML assembly)
         ↕
 Static reader (IIFE app.js — no type=module)
   · markdown-it GFM + outline + themes
@@ -177,7 +177,7 @@ Static reader (IIFE app.js — no type=module)
 3. Keep `latestDoc` across cold/warm open; push after JS ready / retries
 4. Icon must be `Contents/Resources/AppIcon.icns` with **transparent** exterior
 5. Single-file reader: render only the last-opened path; no multi-window/tabs
-6. Export is **PDF only**, via WebKit print pipeline (`NSPrintOperation`) + reader.css `@media print` (hides outline/toolbar) — no JS-side HTML re-assembly
+6. Export is **PDF only**, via native `WKWebView.createPDF` + injected print-mode CSS + bridge-measured full-doc `scrollHeight` rect — no JS-side HTML re-assembly
 
 More detail: [docs/architecture.md](docs/architecture.md)
 

@@ -20,7 +20,7 @@
 |------|----------------|
 | 产品形态 | 阅读器 only；打开 md 即读 |
 | 单文件 | **始终渲染一个文件**；多选打开只取最后一个，不做多窗口/标签 |
-| 导出 | **仅 PDF**（WebKit 系统打印管线 + `@media print` CSS，保留主题）；不做 HTML 导出 |
+| 导出 | **仅 PDF**（原生 `WKWebView.createPDF` + 注入打印态 CSS + 桥接回传整篇高度 rect，保留主题）；不做 HTML 导出 |
 | 平台 | **仅 macOS**（不做 Win / Android） |
 | 壳 | **Swift + AppKit + WKWebView** |
 | 前端 | **esbuild 单文件 IIFE**（无 Svelte/React，**无 ESM module**） |
@@ -48,7 +48,7 @@
 | 实时预览 | 外部编辑器保存 → 自动重渲染 |
 | Mermaid | 离线渲染（flowchart / sequence 等） |
 | 多主题 | Light / Dark / Sepia / Green |
-| PDF 导出 | WebKit 系统打印管线（`NSPrintOperation`）+ `@media print` CSS（分页、保留主题、排除大纲/工具条） |
+| PDF 导出 | 原生 `WKWebView.createPDF(configuration:)`（导出前注入打印态 CSS 隐藏大纲/工具条 + 撑开全高，桥接 `export-pdf-measured` 取整篇 `scrollHeight` 设 `rect` 分页） |
 
 ### 1.2 明确不做
 
@@ -112,7 +112,7 @@
   → JS ready / didFinish / 重试 → 推送 doc
   → markdown-it 渲染；含 mermaid 则 mermaid.run
   → FileWatcher 监听；保存后再次 openFile（保留滚动位置）
-  → 可选：导出 PDF（WKWebView 系统打印管线 + `@media print`）/ 默认应用 / 主题
+  → 可选：导出 PDF（WKWebView.createPDF + 注入打印态 + 桥接取高度）/ 默认应用 / 主题
 ```
 
 ---
@@ -137,7 +137,7 @@
 - **单文件语义**：`AppDelegate` 对同时到达的多个文件只渲染最后一个（始终一个文档），不做多窗口/标签
 - 文档类型 `LSHandlerRank = Owner` + 导出 UTI `app.mdeye.markdown`
 - `DefaultAppService`：`LSSetDefaultRoleHandlerForContentType`
-- **PDF 导出**：走 WebKit 系统打印管线 `WKWebView.printOperation(with: NSPrintInfo)` → `NSPrintOperation`，弹系统打印面板，用户在「PDF ▾ → 另存为 PDF」落盘。打印引擎自动应用 reader.css 的 `@media print`（隐藏左侧大纲与顶部工具条、`.markdown-body` 撑开整篇高度、`break-*` 控分页、`@page` 定边距），声明式、无运行时注入/恢复；渲染实时内容（保留当前主题/CSS/Mermaid）。不走 JS 拼 HTML、不走桥接
+- **PDF 导出**：`WKWebView.createPDF(configuration:)` 直出 PDF `Data` → `NSSavePanel` 写盘。导出前 `evaluateJavaScript` 注入"打印态" `<style id="mdeye-print-mode">`：隐藏 `.outline/.toolbar`、`#app/#main` 改 `display:block`、`.markdown-body` 撑开成整篇高度并解除屏幕态 `html,body{height:100%}` 锁死；JS 经桥接 `export-pdf-measured { width, height }` 回传整篇 `scrollHeight`，Swift 设 `WKPDFConfiguration.rect = (clientWidth, scrollHeight)` 让 `createPDF` 按整篇高切片多页；导出后无论成败移除注入样式恢复阅读态。**不走 `callAsyncJavaScript` 取尺寸**（实测在 `mdeye-app://` 自定义协议 webview 上始终返回 nil）；也**不走系统打印面板「PDF ▾ → 另存为 PDF」**（实测该路径对自定义协议 webview 输出**文件空白**、预览却有内容，故弃用）。不走 JS 拼 HTML。
 - Universal Binary 强制门禁
 - 图标 `CFBundleIconFile = AppIcon`
 
@@ -211,7 +211,7 @@
 - `{ type: "open-md-link", href }`（正文点击同类 .md 相对链接；Swift 在当前文档 baseDir 树内复用 `FileService.resolveAsset` 解析 → `openFile` 单文件替换，跳树/不存在则 `NSAlert`）
 - open-in-editor / reveal-in-finder / error
 
-> **PDF 导出不走桥接**：Swift 走 WebKit 系统打印管线（`WKWebView.printOperation` + `@media print` CSS），前端无 `request-export`/`export-html` 消息。
+> **PDF 导出走 `createPDF` + 桥接取尺寸**：JS 注入打印态后经 `export-pdf-measured { width, height }` 回传整篇 `scrollHeight`，Swift 据此设 `WKPDFConfiguration.rect` 后调 `WKWebView.createPDF`。前端无 `request-export`/`export-html` 消息。注：`callAsyncJavaScript` 在自定义协议 webview 返回 nil，故尺寸经 `webkit.messageHandlers.mdeye.postMessage` 桥接回传而非 JS return。
 
 推送实现优先 `callAsyncJavaScript`，失败则 base64 `evaluateJavaScript` 回退；未 ready 时保留 `latestDoc` 并重试。
 
@@ -340,7 +340,7 @@ mdeye/
 | `verify-open.sh` | 本机 GUI 烟测：冷/热打开；断言 `/tmp/mdeye-last-shown.json` |
 | 真机清单 | 双击默认应用、中文路径、断网、Mermaid、主题、**PDF 导出** |
 
-> 自检模式（`--selftest`）：以 `.accessory` 激活策略启动、不开窗、不抢前台，驱动 `WKWebView` 加载 `mdeye-app://reader/index.html` 并推 `{type:"doc"}`，等 JS 回传 `{type:"doc-shown"}` 后退出。它**只验渲染管线到 doc-shown**；系统打印面板/PDF 导出等用户交互仍需本机或 GUI 烟测覆盖。
+> 自检模式（`--selftest`）：以 `.accessory` 激活策略启动、不开窗、不抢前台，驱动 `WKWebView` 加载 `mdeye-app://reader/index.html` 并推 `{type:"doc"}`，等 JS 回传 `{type:"doc-shown"}` 后退出。它**只验渲染管线到 doc-shown**；PDF 导出（createPDF + 桥接取高度）等用户交互仍需本机或 GUI 烟测覆盖。
 
 离线验收：断网冷启动可用；无 CDN；CSP 拒绝远程脚本。
 
@@ -391,6 +391,7 @@ mdeye/
 | 0.4.0 | 原 `createPDF` 空构造只截一屏 + 大纲/工具条被写入 PDF + 机械切片分页差 | 改走 WebKit 系统打印管线（`NSPrintOperation`）+ reader.css `@media print`（排除大纲/工具条、`break-*` 控分页） |
 | 0.5.0 | 文档内 .md 链接点击无反应（裸跳自定义协议必败）；协议 MIT→Apache-2.0 | 正文 click 委托 + 桥接 `open-md-link`，复用 `FileService.resolveAsset` 同树沙箱解析 → `openFile` 单文件替换 |
 | 0.5.0（教训） | 切 PDF 到打印管线时本机无 Xcode，靠记忆猜 `NSPrintOperation` API → 连续两次 `release.yml` 编译失败、来回 force-update tag | 守则：Swift 改动 push 前必须过编译（本机 `ci-xcodebuild.sh` 或让 `ci.yml` push-to-main 跑 `mac-app`），打印/PDF 等 GUI 路径需手测；不靠记忆猜 API |
+| 0.5.1 | PDF 导出空白 + 只截一屏：系统打印面板「另存为 PDF」对自定义协议 webview 输出空白（预览却有内容）；`callAsyncJavaScript` 在自定义协议 webview 返回 nil → 拿不到 JS 实测尺寸 → rect 退回视口 → 只截一屏 | 回到原生 `createPDF` 直出 Data 写盘；注入打印态 CSS + 经桥接 `export-pdf-measured {width,height}` 取整篇 `scrollHeight` 设 `rect`，绕开 callAsyncJavaScript 与系统打印面板两条失效路径 |
 
 ## 附录 B. 参考
 

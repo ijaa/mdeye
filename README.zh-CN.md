@@ -163,7 +163,7 @@ Swift (AppKit)
   · mdeye-asset:// 提供本地图片（AssetSchemeHandler）
   · PathSandbox：两 handler 共用的相对路径拼接 + `..` 防护
   · WKScriptMessageHandler 桥接
-  · PDF 导出走 WKWebView 系统打印管线 + reader.css `@media print`（不经 JS 拼 HTML、不经桥接）
+  · PDF 导出走 WKWebView.createPDF + 注入打印态 CSS + 桥接回传整篇高度 rect（不经 JS 拼 HTML）
         ↕
 Static reader (IIFE app.js，禁止 type=module)
   · markdown-it GFM + 大纲 + 主题
@@ -177,7 +177,7 @@ Static reader (IIFE app.js，禁止 type=module)
 3. 冷/热打开要保留 `latestDoc` 并在 JS ready / 重试后推送
 4. 图标必须在 `Contents/Resources/AppIcon.icns`，且圆角外需 **透明**
 5. 单文件阅读器：只渲染最后打开的 path，不做多窗口/标签
-6. 导出 **只做 PDF**，走 WebKit 系统打印管线（`NSPrintOperation`）+ reader.css `@media print`（排除大纲/工具条），不在 JS 端重新拼装 HTML
+6. 导出 **只做 PDF**，走原生 `WKWebView.createPDF` + 注入打印态 CSS + 桥接回传整篇 `scrollHeight` 设 rect（排除大纲/工具条、整篇分页），不在 JS 端重新拼装 HTML
 
 更多细节见：[docs/architecture.md](docs/architecture.md)
 

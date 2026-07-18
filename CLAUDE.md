@@ -68,8 +68,8 @@ Reader 开发不依赖本机 Xcode。`git push` / `git tag v*` 会触发 `.githu
 
 **桥接协议**
 - Swift → JS 通过 `window.__mdeye.handle`：`{type:"doc", path, baseDir, text, encoding, mtimeMs}`、`{type:"theme", name}`、`{type:"toggle-outline"}`。
-- JS → Swift 通过 `webkit.messageHandlers.mdeye`：`{type:"ready", version?}`、`{type:"doc-shown", path, chars, hasMermaid}`（写烟测戳记 `/tmp/mdeye-last-shown.json`）、`{type:"set-preference", key, value}`、`{type:"open-md-link", href}`（正文点击同类 .md 相对链接，Swift 在当前文档 baseDir 树内复用 `FileService.resolveAsset` 解析 → `openFile` 单文件替换），以及 open-in-editor / reveal-in-finder / error。
-- **PDF 导出不走桥接。** Swift 在实时 webview 上调系统打印管线 `WKWebView.printOperation(with: NSPrintInfo)` → `NSPrintOperation`，弹系统打印面板，用户在「PDF ▾ → 另存为 PDF」落盘。打印引擎自动应用 reader.css 里的 `@media print` 样式（隐藏左侧大纲与顶部工具条、让 `.markdown-body` 撑开成整篇高度、`break-*` 控制分页、`@page` 定边距），因此是声明式、无运行时注入/恢复。没有 JS 侧拼 HTML，也没有 `request-export`/`export-html` 消息。
+- JS → Swift 通过 `webkit.messageHandlers.mdeye`：`{type:"ready", version?}`、`{type:"doc-shown", path, chars, hasMermaid}`（写烟测戳记 `/tmp/mdeye-last-shown.json`）、`{type:"set-preference", key, value}`、`{type:"open-md-link", href}`（正文点击同类 .md 相对链接，Swift 在当前文档 baseDir 树内复用 `FileService.resolveAsset` 解析 → `openFile` 单文件替换）、`{type:"export-pdf-measured", width, height}`（导出 PDF 时 JS 注入打印态 CSS + 实测整篇 `scrollHeight` 回传，Swift 据此设 `WKPDFConfiguration.rect`），以及 open-in-editor / reveal-in-finder / error。
+- **PDF 导出。** Swift 用原生 `WKWebView.createPDF(configuration:)` 直出 PDF `Data` → `NSSavePanel` 写盘。导出前用 `evaluateJavaScript` 注入一段"打印态" `<style id="mdeye-print-mode">`（隐藏 `.outline/.toolbar`、`#app/#main` 改 `display:block`、`.markdown-body` 撑开成整篇高度，解除屏幕态 `html,body{height:100%}` 锁死），JS 经桥接 `export-pdf-measured` 回传整篇 `scrollHeight`，Swift 设 `WKPDFConfiguration.rect = (clientWidth, scrollHeight)` 让 `createPDF` 按整篇高切片多页；导出后无论成败移除注入样式恢复阅读态。**不走 `callAsyncJavaScript` 取尺寸**——实测它在 `mdeye-app://` 自定义协议 webview 上始终返回 nil；也不走系统打印面板「PDF ▾ → 另存为 PDF」——实测该路径对自定义协议 webview 输出**文件空白**（预览却有内容），故弃用。没有 JS 侧拼 HTML。
 
 ## 硬约束（不得回退）
 
@@ -79,7 +79,7 @@ Reader 开发不依赖本机 Xcode。`git push` / `git tag v*` 会触发 `.githu
 2. **单文件 reader 语义。** 多选打开只渲染最后一个 path。不要加多窗口/标签。
 3. **冷/热打开都要保留 `latestDoc`**，并在 JS ready 后推送 + 重试。这是修复"有窗口无正文"竞态的关键。
 4. **图标必须是 `Contents/Resources/AppIcon.icns`**（扁平单文件，**不**嵌在 `.../Resources/Resources/` 下）。外侧**透明**（JPEG 会把圆角外填成黑色；用 `process-icon-alpha.py`）。`CFBundleIconFile = AppIcon`。
-5. **导出仅 PDF**，走 WebKit 系统打印管线 `NSPrintOperation` + reader.css `@media print` 排除大纲/工具条 —— 不在 JS 侧重组 HTML。
+5. **导出仅 PDF**，走原生 `WKWebView.createPDF(configuration:)` 直出 PDF `Data` 写盘；导出前注入打印态 `<style>`（隐藏 `.outline/.toolbar`、撑开 `.markdown-body` 全高）+ 经桥接 `export-pdf-measured` 取整篇 `scrollHeight` 设 `rect` —— 不走 `callAsyncJavaScript`（自定义协议 webview 返回 nil）、不走系统打印面板「另存为 PDF」（自定义协议 webview 输出空白）、不在 JS 侧重组 HTML。
 6. **强制 Universal 二进制**（`ARCHS="arm64 x86_64"`，Release `ONLY_ACTIVE_ARCH=NO`）。CI 断言二进制同时含 `x86_64` 与 `arm64`。
 7. **版本号唯一真源是 `App/Info.plist`**（`CFBundleShortVersionString` + `CFBundleVersion`）。`build.mjs` 读取注入；不要在 JS 里硬编码版本。
 
