@@ -193,19 +193,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         webView.callAsyncJavaScript(
             """
             (function() {
-              function snap() {
-                var c = document.querySelector('.markdown-body');
-                return {
-                  vport: window.innerHeight,
-                  docClient: document.documentElement.clientHeight,
-                  docScroll: document.documentElement.scrollHeight,
-                  bodyScroll: document.body ? document.body.scrollHeight : -1,
-                  contentScroll: c ? c.scrollHeight : -1,
-                  contentClient: c ? c.clientHeight : -1,
-                  appMinHeight: getComputedStyle(document.getElementById('app')||document.body).minHeight
-                };
-              }
-              var before = snap();
+              // 幂等：若已存在先移除，避免上次异常残留。
               document.getElementById('mdeye-print-mode')?.remove();
               var style = document.createElement('style');
               style.id = 'mdeye-print-mode';
@@ -216,14 +204,18 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
                 + '.markdown-body { flex:none !important; overflow:visible !important; height:auto !important; max-height:none !important; padding:28px 32px 64px !important; }'
                 + '.outline, .toolbar { display:none !important; }';
               document.head.appendChild(style);
-              return new Promise(function(resolve) {
-                requestAnimationFrame(function() {
-                  requestAnimationFrame(function() {
-                    resolve({ before: before, after: snap(), width: document.documentElement.clientWidth,
-                             height: Math.ceil(document.documentElement.scrollHeight) });
-                  });
-                });
-              });
+              // 同步读尺寸：访问 scrollHeight/offsetHeight 会触发同步 reflow，
+              // 拿到注入打印态后的真实布局（不依赖 Promise/RAF，避免 callAsyncJavaScript
+              // 不 await Promise 而返回 nil 导致回退视口尺寸→只截一屏）。
+              var c = document.querySelector('.markdown-body');
+              // 强制一次同步 reflow。
+              void document.documentElement.offsetHeight;
+              return {
+                width: document.documentElement.clientWidth,
+                height: Math.ceil(document.documentElement.scrollHeight),
+                contentScroll: c ? c.scrollHeight : -1,
+                vport: window.innerHeight
+              };
             })();
             """,
             arguments: [:],
