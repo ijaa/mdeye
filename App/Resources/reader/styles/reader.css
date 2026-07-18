@@ -310,12 +310,15 @@ body {
     display: none !important;
   }
 
-  /* 正文从内部滚动容器改为撑开成完整高度，供打印引擎分页 */
+  /* 正文从内部滚动容器改为撑开成完整高度，供打印引擎分页。
+     关键：把屏幕态的 flex 容器（#app / #main）压回普通流——Webkit 打印分页器
+     对 display:flex 容器有已知空白缺陷（flex item 跨页常被画成 0 高）。*/
   html,
   body,
   #app,
   #main,
   .markdown-body {
+    display: block !important;
     height: auto !important;
     overflow: visible !important;
   }

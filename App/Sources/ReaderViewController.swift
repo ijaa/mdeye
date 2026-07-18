@@ -1,5 +1,6 @@
 import AppKit
 import WebKit
+import UniformTypeIdentifiers
 
 final class DropView: NSView {
     var onDropMarkdown: ((String) -> Void)?
@@ -156,27 +157,110 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         openFile(path: path)
     }
 
-    /// 导出 PDF：走 WebKit 系统打印管线（`NSPrintOperation`），而非原生 `createPDF`。
-    /// 打印引擎会自动应用 reader.css 里的 `@media print` 样式——隐藏左侧大纲与顶部工具条、
-    /// 让 `.markdown-body` 撑开成整篇高度、`break-*` 控制分页——因此是声明式、无状态、无运行时恢复。
-    /// 用户在系统打印面板右下「PDF ▾ → 另存为 PDF」落盘。菜单文案仍为 Export PDF…。
+    /// 导出 PDF：用原生 `WKWebView.createPDF(configuration:)` 直出 PDF `Data` 写盘。
+    ///
+    /// 为什么不用 `printOp.run()` + 系统「PDF ▾ → 另存为 PDF」：实测在 `mdeye-app://` 自定义协议加载的
+    /// WKWebView 上，打印面板的**预览有内容**，但经系统对话框「另存为 PDF」输出的**文件空白**——
+    /// 这是系统打印对话框对自定义协议 webview 输出 PDF 的已知失效路径。`createPDF` 直接排版当前已
+    /// render 的 DOM 成 PDF `Data`，不经该失效路径，内容确定不空。
+    ///
+    /// reader 正文在 `.markdown-body { overflow:auto }` 内部滚动容器、`#app/#main` 是 display:flex，
+    /// 直接 `createPDF(rect=视口)` 只截一屏。导出前注入一段"打印态" CSS：隐藏 `.outline/.toolbar`、
+    /// 把 `#app/#main` 改 block、`.markdown-body` 撑开成全高；实测 `scrollHeight` 作 rect 高，让
+    /// `createPDF` 按整篇高切片成多页；导出后无论成功失败移除注入样式恢复阅读态。
+    /// `NSSavePanel` 直接落盘（菜单 Export PDF… 直达文件）。
     func requestExportPDF() {
         guard currentPath != nil, let webView else { return }
-        let printInfo = NSPrintInfo.shared
-        // 与 reader.css 的 `@page { margin: 16mm }` 协调（NSPrintInfo 以点为单位，16mm ≈ 45pt）。
-        let margin: CGFloat = 45.4
-        printInfo.leftMargin = margin
-        printInfo.rightMargin = margin
-        printInfo.topMargin = margin
-        printInfo.bottomMargin = margin
-        printInfo.isHorizontallyCentered = false
-        printInfo.isVerticallyCentered = false
+        let suggested = (currentPath as NSString?)?
+            .components(separatedBy: "/").last?
+            .replacingOccurrences(
+                of: "\\.(md|markdown|mdx|mdown|mkd|mkdn|mdwn)$",
+                with: "",
+                options: .regularExpression
+            ) ?? "export"
 
-        let printOp = webView.printOperation(with: printInfo)
-        printOp.showsPrintPanel = true
-        printOp.showsProgressPanel = true
-        // run() 按上述开关弹出打印面板（含「PDF ▾ → 另存为 PDF」），并模态执行至结束。
-        printOp.run()
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(suggested).pdf"
+        if #available(macOS 11.0, *) { panel.allowedContentTypes = [.pdf] }
+        panel.begin { [weak self] result in
+            guard result == .OK, let url = panel.url else { return }
+            self?.writePDF(from: webView, to: url)
+        }
+    }
+
+    /// 注入打印态、实测整篇尺寸、用原生 `createPDF(rect=全高)` 分页出 PDF，落盘后恢复阅读态。
+    private func writePDF(from webView: WKWebView, to url: URL) {
+        webView.callAsyncJavaScript(
+            """
+            (function() {
+              // 幂等：若已存在先移除，避免上次异常残留。
+              document.getElementById('mdeye-print-mode')?.remove();
+              var style = document.createElement('style');
+              style.id = 'mdeye-print-mode';
+              style.textContent = ''
+                + '#app, #main { display:block !important; height:auto !important; min-height:0 !important; }'
+                + '.markdown-body { flex:none !important; overflow:visible !important; height:auto !important; max-height:none !important; padding:28px 32px 64px !important; }'
+                + '.outline, .toolbar { display:none !important; }';
+              document.head.appendChild(style);
+              return new Promise(function(resolve) {
+                requestAnimationFrame(function() {
+                  requestAnimationFrame(function() {
+                    resolve({
+                      width: document.documentElement.clientWidth,
+                      height: Math.ceil(document.documentElement.scrollHeight)
+                    });
+                  });
+                });
+              });
+            })();
+            """,
+            arguments: nil,
+            in: nil,
+            in: .page
+        ) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let value):
+                let width: Double
+                let height: Double
+                if let dict = value as? [String: Any],
+                   let w = (dict["width"] as? Double) ?? (dict["width"] as? Int).map(Double.init),
+                   let h = (dict["height"] as? Double) ?? (dict["height"] as? Int).map(Double.init),
+                   w > 0, h > 0 {
+                    width = w
+                    height = h
+                } else {
+                    NSLog("mdeye: print-mode probe unexpected, fallback to viewport rect")
+                    width = Double(webView.bounds.width)
+                    height = Double(webView.bounds.height)
+                }
+                self.renderPDF(on: webView, to: url, width: width, height: height)
+            case .failure(let error):
+                NSLog("mdeye: print-mode inject failed: %@", error.localizedDescription)
+                webView.evaluateJavaScript("document.getElementById('mdeye-print-mode')?.remove()")
+                self.renderPDF(on: webView, to: url,
+                               width: Double(webView.bounds.width),
+                               height: Double(webView.bounds.height))
+            }
+        }
+    }
+
+    private func renderPDF(on webView: WKWebView, to url: URL, width: Double, height: Double) {
+        let cfg = WKPDFConfiguration()
+        cfg.rect = CGRect(x: 0, y: 0, width: width, height: height)
+        webView.createPDF(configuration: cfg) { [weak self] (result: Result<Data, Error>) in
+            DispatchQueue.main.async {
+                // 无论成功失败都恢复阅读态。
+                webView.evaluateJavaScript("document.getElementById('mdeye-print-mode')?.remove()")
+                switch result {
+                case .success(let data):
+                    if (try? data.write(to: url, options: .atomic)) != nil { return }
+                    self?.presentError("PDF export failed: could not write file")
+                case .failure(let error):
+                    self?.presentError("PDF export failed: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     func revealInFinder() {
