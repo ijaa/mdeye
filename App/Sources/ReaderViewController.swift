@@ -205,18 +205,21 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             + 'html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }'
             + '#app { display:block !important; height:auto !important; min-height:0 !important; }'
             + '#main { display:block !important; height:auto !important; min-height:0 !important; }'
-            // rect 取正文窄栏宽，故 padding 归零、去 max-width 双层留白，让各块占满 PDF 页宽。
+            // 去屏幕态 .markdown-body 的 32px padding（rect 已是正文宽，免双层留白），
+            // 但保留子元素的 max-width:42rem + margin:auto 居中——正文块在 rect 内左右对称。
             + '.markdown-body { flex:none !important; overflow:visible !important; height:auto !important; max-height:none !important; padding:0 !important; }'
-            + '.markdown-body > * { max-width:none !important; margin-left:0 !important; margin-right:0 !important; }'
             + '.outline, .toolbar { display:none !important; }';
           document.head.appendChild(style);
           // 强制同步 reflow，再读尺寸。
           void document.documentElement.offsetHeight;
+          // 宽取正文窄栏实际渲染宽：第一个非空子元素的 boundingRect.width（即 42rem 居中后的内容宽）。
+          // 回退到 .markdown-body clientWidth，再退到 672（42rem@16px）。
           var c = document.querySelector('.markdown-body');
-          // 宽用正文窄栏宽（去掉屏幕态 42rem 居中后的实际内容宽），高取整篇 scrollHeight。
+          var first = c ? c.querySelector('h1, h2, h3, p, ul, ol, pre, blockquote, table') : null;
+          var w = first ? Math.ceil(first.getBoundingClientRect().width) : (c ? c.clientWidth : 672);
           var msg = {
             type: 'export-pdf-measured',
-            width: c ? c.clientWidth : document.documentElement.clientWidth,
+            width: w,
             height: Math.ceil(document.documentElement.scrollHeight)
           };
           try { window.webkit.messageHandlers.mdeye.postMessage(msg); } catch (e) {}
