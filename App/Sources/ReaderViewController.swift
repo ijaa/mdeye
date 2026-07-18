@@ -101,7 +101,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         webView = wv
     }
 
-    private static func locateReaderRoot() -> URL? {
+    static func locateReaderRoot() -> URL? {
         let candidates: [URL] = {
             var urls: [URL] = []
             if let resourceURL = Bundle.main.resourceURL {

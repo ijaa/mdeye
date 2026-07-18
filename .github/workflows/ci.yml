@@ -72,6 +72,12 @@ jobs:
           echo "bundle OK: classic IIFE + universal + icon"
           du -sh "$APP" "$APPJS" "$ICON"
 
+      - name: Headless render selftest (md → doc-shown)
+        run: |
+          chmod +x scripts/*.sh
+          xattr -c build/mdeasy.app 2>/dev/null || true
+          ./scripts/ci-selftest.sh build/mdeasy.app
+
       - name: Upload mdeasy.app
         uses: actions/upload-artifact@v4
         with:
