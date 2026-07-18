@@ -20,7 +20,7 @@
 |------|----------------|
 | 产品形态 | 阅读器 only；打开 md 即读 |
 | 单文件 | **始终渲染一个文件**；多选打开只取最后一个，不做多窗口/标签 |
-| 导出 | **仅 PDF**（原生 `WKWebView.createPDF` + 注入打印态 CSS + 桥接回传整篇高度 rect，保留主题）；不做 HTML 导出 |
+| 导出 | **仅 PDF**（独立 file-backed `WKWebView` + `NSPrintOperation` A4 分页 + 打印专用浅色样式）；不做 HTML 导出 |
 | 平台 | **仅 macOS**（不做 Win / Android） |
 | 壳 | **Swift + AppKit + WKWebView** |
 | 前端 | **esbuild 单文件 IIFE**（无 Svelte/React，**无 ESM module**） |
@@ -48,7 +48,7 @@
 | 实时预览 | 外部编辑器保存 → 自动重渲染 |
 | Mermaid | 离线渲染（flowchart / sequence 等） |
 | 多主题 | Light / Dark / Sepia / Green |
-| PDF 导出 | 原生 `WKWebView.createPDF(configuration:)`（导出前注入打印态 CSS 隐藏大纲/工具条 + 撑开全高，桥接 `export-pdf-measured` 取整篇 `scrollHeight` 设 `rect` 分页） |
+| PDF 导出 | 独立 file-backed `WKWebView` 渲染同一 reader，收到 `print-ready` 后由 `NSPrintOperation` 按 A4 + 16mm 边距分页并直接保存 |
 
 ### 1.2 明确不做
 
@@ -112,7 +112,7 @@
   → JS ready / didFinish / 重试 → 推送 doc
   → markdown-it 渲染；含 mermaid 则 mermaid.run
   → FileWatcher 监听；保存后再次 openFile（保留滚动位置）
-  → 可选：导出 PDF（WKWebView.createPDF + 注入打印态 + 桥接取高度）/ 默认应用 / 主题
+  → 可选：导出 PDF（独立 file-backed WKWebView + NSPrintOperation）/ 默认应用 / 主题
 ```
 
 ---
@@ -137,7 +137,7 @@
 - **单文件语义**：`AppDelegate` 对同时到达的多个文件只渲染最后一个（始终一个文档），不做多窗口/标签
 - 文档类型 `LSHandlerRank = Owner` + 导出 UTI `app.mdeye.markdown`
 - `DefaultAppService`：`LSSetDefaultRoleHandlerForContentType`
-- **PDF 导出**：`WKWebView.createPDF(configuration:)` 直出 PDF `Data` → `NSSavePanel` 写盘。导出前 `evaluateJavaScript` 注入"打印态" `<style id="mdeye-print-mode">`：隐藏 `.outline/.toolbar`、`#app/#main` 改 `display:block`、`.markdown-body` 撑开成整篇高度并解除屏幕态 `html,body{height:100%}` 锁死；JS 经桥接 `export-pdf-measured { width, height }` 回传整篇 `scrollHeight`，Swift 设 `WKPDFConfiguration.rect = (clientWidth, scrollHeight)` 让 `createPDF` 按整篇高切片多页；导出后无论成败移除注入样式恢复阅读态。**不走 `callAsyncJavaScript` 取尺寸**（实测在 `mdeye-app://` 自定义协议 webview 上始终返回 nil）；也**不走系统打印面板「PDF ▾ → 另存为 PDF」**（实测该路径对自定义协议 webview 输出**文件空白**、预览却有内容，故弃用）。不走 JS 拼 HTML。
+- **PDF 导出**：`NSSavePanel` 选路径后创建独立 `PDFExportCoordinator`。协调器用 `file://` 加载同一 reader bundle，注册 `mdeye-asset://` 读取当前文档图片，推送当前 Markdown 与主题；JS 完成 Mermaid、字体、图片和两帧布局后回传 `print-ready`。Swift 随后用 `NSPrintOperation` 按 A4、16mm 边距、WebKit 打印分页直接写入目标 URL，并用 PDFKit 验证至少一页。阅读 WebView 始终保持原样。打印 CSS 默认使用纸张友好的浅色主题，不走 JS HTML 重组，也不再测量 `scrollHeight` 或调用 `createPDF`。
 - Universal Binary 强制门禁
 - 图标 `CFBundleIconFile = AppIcon`
 
@@ -209,9 +209,10 @@
 - `{ type: "doc-shown", path, chars, hasMermaid }`（冒烟戳记 `/tmp/mdeye-last-shown.json`）
 - `{ type: "set-preference", key, value }`
 - `{ type: "open-md-link", href }`（正文点击同类 .md 相对链接；Swift 在当前文档 baseDir 树内复用 `FileService.resolveAsset` 解析 → `openFile` 单文件替换，跳树/不存在则 `NSAlert`）
+- `{ type: "print-ready" }`（仅打印 WebView：字体、图片、Mermaid 与布局稳定，可以启动打印）
 - open-in-editor / reveal-in-finder / error
 
-> **PDF 导出走 `createPDF` + 桥接取尺寸**：JS 注入打印态后经 `export-pdf-measured { width, height }` 回传整篇 `scrollHeight`，Swift 据此设 `WKPDFConfiguration.rect` 后调 `WKWebView.createPDF`。前端无 `request-export`/`export-html` 消息。注：`callAsyncJavaScript` 在自定义协议 webview 返回 nil，故尺寸经 `webkit.messageHandlers.mdeye.postMessage` 桥接回传而非 JS return。
+> **PDF 导出桥接**：Swift 向独立打印 WebView 发送 `{type:"prepare-print"}`；JS 等待 `document.fonts.ready`、全部图片以及两帧布局后回传 `{type:"print-ready"}`。分页与落盘由 `NSPrintOperation` 完成，纸张参数不由 DOM 尺寸推断。
 
 推送实现优先 `callAsyncJavaScript`，失败则 base64 `evaluateJavaScript` 回退；未 ready 时保留 `latestDoc` 并重试。
 
@@ -336,11 +337,11 @@ mdeye/
 |------|------|
 | 前端单测 | `reader/test/*.test.mjs`：依赖解析 + `md.js` 纯函数（slugify/CJK、rewriteImages、outline、mermaid、task-list、hljs） |
 | CI 结构门禁 | IIFE、通用架构、图标路径 |
-| CI headless 自检 | `mdeye --selftest <path.md>`：无 GUI 会话下离屏 WKWebView 走完整渲染管线，写出 doc-shown stamp；`scripts/ci-selftest.sh` 轮询断言 |
+| CI headless 自检 | `--selftest` 验证阅读渲染；`--pdf-selftest <path.md> <out.pdf>` 走生产打印协调器并断言有效多页 PDF |
 | `verify-open.sh` | 本机 GUI 烟测：冷/热打开；断言 `/tmp/mdeye-last-shown.json` |
 | 真机清单 | 双击默认应用、中文路径、断网、Mermaid、主题、**PDF 导出** |
 
-> 自检模式（`--selftest`）：以 `.accessory` 激活策略启动、不开窗、不抢前台，驱动 `WKWebView` 加载 `mdeye-app://reader/index.html` 并推 `{type:"doc"}`，等 JS 回传 `{type:"doc-shown"}` 后退出。它**只验渲染管线到 doc-shown**；PDF 导出（createPDF + 桥接取高度）等用户交互仍需本机或 GUI 烟测覆盖。
+> `--selftest` 验证 `mdeye-app://` 阅读链路到 `doc-shown`；`--pdf-selftest` 使用 file-backed 打印 WebView、`print-ready` 和 `NSPrintOperation` 生成至少两页 PDF。`NSSavePanel` 用户交互仍由真机烟测覆盖。
 
 离线验收：断网冷启动可用；无 CDN；CSP 拒绝远程脚本。
 
@@ -369,6 +370,7 @@ mdeye/
 - [x] 无本机 Xcode 可开发 reader + CI 出包  
 - [x] 导出 PDF（WebKit 系统打印管线 + `@media print`，排除大纲/工具条、整篇分页）（0.4.0）
 - [x] CI headless 渲染自检（`--selftest`）（0.3.0）  
+- [x] CI 多页 PDF 导出自检（`--pdf-selftest`）
 
 ---
 

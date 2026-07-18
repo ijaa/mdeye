@@ -157,13 +157,13 @@ README.zh-CN.md      # Chinese
 
 ```text
 Swift (AppKit)
-  · main.swift explicit NSApplication.run  (also: --selftest headless CI mode)
+  · main.swift explicit NSApplication.run  (also: --selftest / --pdf-selftest CI modes)
   · open urls / openFile / openFiles  (single-file: only the last path renders)
   · mdeye-app:// loads UI (AppSchemeHandler)
   · mdeye-asset:// serves local images (AssetSchemeHandler)
   · PathSandbox: shared safe relative-path join + ".." guard for both schemes
   · WKScriptMessageHandler bridge
-  · PDF export via WKWebView.createPDF + injected print-mode CSS + bridge-measured full-height rect (no JS HTML assembly)
+  · PDF export via a dedicated file-backed WKWebView + A4 NSPrintOperation pagination
         ↕
 Static reader (IIFE app.js — no type=module)
   · markdown-it GFM + outline + themes
@@ -177,7 +177,7 @@ Static reader (IIFE app.js — no type=module)
 3. Keep `latestDoc` across cold/warm open; push after JS ready / retries
 4. Icon must be `Contents/Resources/AppIcon.icns` with **transparent** exterior
 5. Single-file reader: render only the last-opened path; no multi-window/tabs
-6. Export is **PDF only**, via native `WKWebView.createPDF` + injected print-mode CSS + bridge-measured full-doc `scrollHeight` rect — no JS-side HTML re-assembly
+6. Export is **PDF only**, via a dedicated file-backed WKWebView + `@media print` + A4 `NSPrintOperation`; the reading webview is never mutated
 
 More detail: [docs/architecture.md](docs/architecture.md)
 
@@ -194,7 +194,7 @@ More detail: [docs/architecture.md](docs/architecture.md)
 | `scripts/build-icon.sh` | Generate `AppIcon.icns` |
 | `scripts/process-icon-alpha.py` | JPEG black corners → transparent PNG (needs Pillow) |
 | `scripts/verify-open.sh` | Cold/warm open render smoke test (local GUI; installs into /Applications) |
-| `scripts/ci-selftest.sh` | Headless `--selftest` render self-check (no GUI; CI) |
+| `scripts/ci-selftest.sh` | Headless render + multi-page PDF export self-checks (CI) |
 
 ---
 

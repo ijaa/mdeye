@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# Headless rendering self-check for CI. Runs mdeye with `--selftest <md>` on a
-# runner that has NO GUI login / WindowServer session, and asserts the reader
-# actually rendered by polling /tmp/mdeye-last-shown.json.
-# This covers what CI can: the load → IIFE → bridge → render → doc-shown pipeline.
-# It does NOT cover NSSavePanel / PDF export (user-interactive, needs GUI).
+# Headless render and PDF export checks for CI. The PDF path bypasses NSSavePanel
+# but otherwise uses the production file-backed WKWebView and print coordinator.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,7 +17,8 @@ fi
 MD_BASE="$(mktemp /tmp/mdeye-selftest.XXXXXX)"
 rm -f "$MD_BASE"
 MD="$MD_BASE.md"
-trap 'rm -f "$MD" /tmp/mdeye-last-shown.json' EXIT
+PDF="$MD_BASE.pdf"
+trap 'rm -f "$MD" "$PDF" /tmp/mdeye-last-shown.json' EXIT
 cat >"$MD" <<'EOF'
 # Selftest
 
@@ -39,6 +37,12 @@ graph LR
   A --> B
 ```
 EOF
+
+# Force real pagination; a viewport capture or continuous single-page regression
+# must not pass this check.
+for i in $(seq 1 120); do
+  printf '\n## Section %s\n\nParagraph %s with enough text to exercise wrapping and page breaks.\n' "$i" "$i" >>"$MD"
+done
 
 rm -f /tmp/mdeye-last-shown.json
 
@@ -71,19 +75,25 @@ wait "$PID" && EXITCODE=0 || EXITCODE=$?
 # teardown, so re-check once after it returns.
 sleep 0.2
 if check_stamp; then
-  echo "SELFTEST CI OK"
-  exit 0
-fi
-
-if [[ "$EXITCODE" -ne 0 ]]; then
+  echo "RENDER SELFTEST CI OK"
+elif [[ "$EXITCODE" -ne 0 ]]; then
   echo "FAIL: selftest process exited $EXITCODE without a valid stamp" >&2
   cat /tmp/mdeye-last-shown.json 2>/dev/null >&2 || true
   exit 1
+else
+  # Process exited 0 but stamp missing/partial — one last retry, then give up.
+  STAMP_OK=0
+  for _ in $(seq 1 10); do
+    if check_stamp; then STAMP_OK=1; break; fi
+    sleep 0.2
+  done
+  [[ "$STAMP_OK" -eq 1 ]] || print_failure
+  echo "RENDER SELFTEST CI OK"
 fi
 
-# Process exited 0 but stamp missing/partial — one last retry, then give up.
-for _ in $(seq 1 10); do
-  if check_stamp; then echo "SELFTEST CI OK"; exit 0; fi
-  sleep 0.2
-done
-print_failure
+echo "== PDF selftest run =="
+rm -f "$PDF"
+"$BIN" --pdf-selftest "$MD" "$PDF"
+[[ -s "$PDF" ]] || { echo "FAIL: PDF was not created" >&2; exit 1; }
+[[ "$(head -c 4 "$PDF")" == "%PDF" ]] || { echo "FAIL: invalid PDF header" >&2; exit 1; }
+echo "PDF SELFTEST CI OK ($(du -h "$PDF" | awk '{print $1}'))"

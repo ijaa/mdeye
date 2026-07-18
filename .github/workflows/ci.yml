@@ -72,7 +72,7 @@ jobs:
           echo "bundle OK: classic IIFE + universal + icon"
           du -sh "$APP" "$APPJS" "$ICON"
 
-      - name: Headless render selftest (md → doc-shown)
+      - name: Headless render and PDF export selftests
         run: |
           chmod +x scripts/*.sh
           xattr -c build/mdeye.app 2>/dev/null || true

@@ -1,4 +1,5 @@
 import AppKit
+import PDFKit
 import WebKit
 import UniformTypeIdentifiers
 
@@ -43,8 +44,7 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
     private var latestDoc: [String: Any]?
     private var readerReady = false
     private var readerRoot: URL?
-    /// 待导出 PDF 的目标 URL：用户选好保存路径后挂起，等 JS 回传实测尺寸（`export-pdf-measured`）再 createPDF。
-    private var pendingExportURL: URL?
+    private var pdfExporter: PDFExportCoordinator?
 
     override func loadView() {
         let drop = DropView(frame: NSRect(x: 0, y: 0, width: 960, height: 720))
@@ -159,20 +159,15 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         openFile(path: path)
     }
 
-    /// 导出 PDF：用原生 `WKWebView.createPDF(configuration:)` 直出 PDF `Data` 写盘。
-    ///
-    /// 为什么不用 `printOp.run()` + 系统「PDF ▾ → 另存为 PDF」：实测在 `mdeye-app://` 自定义协议加载的
-    /// WKWebView 上，打印面板的**预览有内容**，但经系统对话框「另存为 PDF」输出的**文件空白**——
-    /// 这是系统打印对话框对自定义协议 webview 输出 PDF 的已知失效路径。`createPDF` 直接排版当前已
-    /// render 的 DOM 成 PDF `Data`，不经该失效路径，内容确定不空。
-    ///
-    /// reader 正文在 `.markdown-body { overflow:auto }` 内部滚动容器、`#app/#main` 是 display:flex，
-    /// 直接 `createPDF(rect=视口)` 只截一屏。导出前注入一段"打印态" CSS：隐藏 `.outline/.toolbar`、
-    /// 把 `#app/#main` 改 block、`.markdown-body` 撑开成全高；实测 `scrollHeight` 作 rect 高，让
-    /// `createPDF` 按整篇高切片成多页；导出后无论成功失败移除注入样式恢复阅读态。
-    /// `NSSavePanel` 直接落盘（菜单 Export PDF… 直达文件）。
+    /// Export through a dedicated file-backed WKWebView and WebKit's print pipeline.
+    /// The reading webview remains untouched; the exporter applies `@media print`, paginates to A4,
+    /// and saves directly without going through the system print panel's custom-scheme path.
     func requestExportPDF() {
-        guard currentPath != nil, let webView else { return }
+        guard pdfExporter == nil else {
+            presentError("A PDF export is already in progress.")
+            return
+        }
+        guard let currentPath, let readerRoot, let doc = latestDoc else { return }
         let suggested = (currentPath as NSString?)?
             .components(separatedBy: "/").last?
             .replacingOccurrences(
@@ -186,81 +181,21 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
         if #available(macOS 11.0, *) { panel.allowedContentTypes = [.pdf] }
         panel.begin { [weak self] result in
             guard result == .OK, let url = panel.url else { return }
-            self?.writePDF(from: webView, to: url)
-        }
-    }
-
-    /// 注入打印态并实测整篇尺寸。`callAsyncJavaScript` 在 `mdeye-app://` 自定义协议 webview 上
-    /// 始终返回 nil（实测 beta5/beta6），拿不到 JS return 值。改用 fire-and-forget `evaluateJavaScript`
-    /// 注入 + 测尺寸，结果经桥接 `webkit.messageHandlers.mdeye` 回传 `{type:"export-pdf-measured"}`
-    /// （那条在 `sendBridgeEvent` 已稳定可用），`userContentController` 收到后调 `renderPDF`。
-    private func writePDF(from webView: WKWebView, to url: URL) {
-        pendingExportURL = url
-        let js = """
-        (function() {
-          document.getElementById('mdeye-print-mode')?.remove();
-          var style = document.createElement('style');
-          style.id = 'mdeye-print-mode';
-          style.textContent = ''
-            + 'html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }'
-            + '#app { display:block !important; height:auto !important; min-height:0 !important; }'
-            + '#main { display:block !important; height:auto !important; min-height:0 !important; }'
-            // 去屏幕态 .markdown-body 的 32px padding（rect 已是正文宽，免双层留白），
-            // 但保留子元素的 max-width:42rem + margin:auto 居中——正文块在 rect 内左右对称。
-            + '.markdown-body { flex:none !important; overflow:visible !important; height:auto !important; max-height:none !important; padding:0 !important; }'
-            + '.outline, .toolbar { display:none !important; }';
-          document.head.appendChild(style);
-          // 强制同步 reflow，再读尺寸。
-          void document.documentElement.offsetHeight;
-          // 宽取正文窄栏实际渲染宽：第一个非空子元素的 boundingRect.width（即 42rem 居中后的内容宽）。
-          // 回退到 .markdown-body clientWidth，再退到 672（42rem@16px）。
-          var c = document.querySelector('.markdown-body');
-          var first = c ? c.querySelector('h1, h2, h3, p, ul, ol, pre, blockquote, table') : null;
-          var w = first ? Math.ceil(first.getBoundingClientRect().width) : (c ? c.clientWidth : 672);
-          var msg = {
-            type: 'export-pdf-measured',
-            width: w,
-            height: Math.ceil(document.documentElement.scrollHeight)
-          };
-          try { window.webkit.messageHandlers.mdeye.postMessage(msg); } catch (e) {}
-        })();
-        """
-        webView.evaluateJavaScript(js)
-    }
-
-    /// 桥接收到 JS 实测的整篇尺寸后，用其驱动 `createPDF`（rect=全高）分页出 PDF。
-    private func handleExportMeasured(_ body: [String: Any]) {
-        guard let webView, let url = pendingExportURL else { return }
-        let width: Double
-        let height: Double
-        if let w = (body["width"] as? Double) ?? (body["width"] as? Int).map(Double.init),
-           let h = (body["height"] as? Double) ?? (body["height"] as? Int).map(Double.init),
-           w > 0, h > 0 {
-            width = w
-            height = h
-        } else {
-            NSLog("mdeye: export-pdf-measured invalid, fallback viewport")
-            width = Double(webView.bounds.width)
-            height = Double(webView.bounds.height)
-        }
-        pendingExportURL = nil
-        renderPDF(on: webView, to: url, width: width, height: height)
-    }
-
-    private func renderPDF(on webView: WKWebView, to url: URL, width: Double, height: Double) {
-        let cfg = WKPDFConfiguration()
-        cfg.rect = CGRect(x: 0, y: 0, width: width, height: height)
-        webView.createPDF(configuration: cfg) { [weak self] (result: Result<Data, Error>) in
-            DispatchQueue.main.async {
-                webView.evaluateJavaScript("document.getElementById('mdeye-print-mode')?.remove()")
-                switch result {
-                case .success(let data):
-                    if (try? data.write(to: url, options: .atomic)) != nil { return }
-                    self?.presentError("PDF export failed: could not write file")
-                case .failure(let error):
-                    self?.presentError("PDF export failed: \(error.localizedDescription)")
+            guard let self else { return }
+            let exporter = PDFExportCoordinator(
+                readerRoot: readerRoot,
+                document: doc,
+                theme: Preferences.shared.theme,
+                outputURL: url
+            ) { [weak self] result in
+                guard let self else { return }
+                self.pdfExporter = nil
+                if case .failure(let error) = result {
+                    self.presentError("PDF export failed: \(error.localizedDescription)")
                 }
             }
+            self.pdfExporter = exporter
+            exporter.start()
         }
     }
 
@@ -531,8 +466,6 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             if let href = body["href"] as? String {
                 openMarkdownLink(href: href)
             }
-        case "export-pdf-measured":
-            handleExportMeasured(body)
         case "set-preference":
             if let key = body["key"] as? String {
                 Preferences.shared.set(key: key, value: body["value"])
@@ -570,6 +503,203 @@ final class ReaderViewController: NSViewController, WKScriptMessageHandler, WKNa
             case .encodeFailed: return "Failed to encode bridge payload"
             case .noWebView: return "WebView not ready"
             case .handlerNotReady: return "JS handler not ready"
+            }
+        }
+    }
+}
+
+final class PDFExportCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    private static let a4Size = NSSize(width: 595.28, height: 841.89)
+    private static let margin: CGFloat = 45.35 // 16 mm
+
+    private let readerRoot: URL
+    private let document: [String: Any]
+    private let theme: String
+    private let outputURL: URL
+    private let temporaryURL: URL
+    private let completion: (Result<Void, Error>) -> Void
+    private let assetHandler = AssetSchemeHandler()
+
+    private var webView: WKWebView?
+    private var timeoutWorkItem: DispatchWorkItem?
+    private var didSendDocument = false
+    private var didRequestPrintPreparation = false
+    private var isFinished = false
+
+    init(
+        readerRoot: URL,
+        document: [String: Any],
+        theme: String,
+        outputURL: URL,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        self.readerRoot = readerRoot
+        self.document = document
+        self.theme = theme
+        self.outputURL = outputURL
+        self.temporaryURL = outputURL.deletingLastPathComponent()
+            .appendingPathComponent(".mdeye-pdf-\(UUID().uuidString).pdf")
+        self.completion = completion
+        super.init()
+    }
+
+    func start() {
+        guard let baseDir = document["baseDir"] as? String else {
+            finish(.failure(ExportError.invalidDocument))
+            return
+        }
+
+        assetHandler.baseDir = URL(fileURLWithPath: baseDir, isDirectory: true)
+        let configuration = WKWebViewConfiguration()
+        configuration.setURLSchemeHandler(assetHandler, forURLScheme: AssetSchemeHandler.scheme)
+        configuration.userContentController.add(self, name: "mdeye")
+
+        let webView = WKWebView(frame: NSRect(origin: .zero, size: Self.a4Size), configuration: configuration)
+        webView.navigationDelegate = self
+        self.webView = webView
+
+        let timeout = DispatchWorkItem { [weak self] in
+            self?.finish(.failure(ExportError.timedOut))
+        }
+        timeoutWorkItem = timeout
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: timeout)
+
+        let indexURL = readerRoot.appendingPathComponent("index.html")
+        webView.loadFileURL(indexURL, allowingReadAccessTo: readerRoot)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        finish(.failure(error))
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        finish(.failure(error))
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "mdeye",
+              let body = message.body as? [String: Any],
+              let type = body["type"] as? String else { return }
+
+        switch type {
+        case "ready":
+            sendDocumentIfNeeded()
+        case "doc-shown":
+            requestPrintPreparationIfNeeded()
+        case "print-ready":
+            printPDF()
+        case "error":
+            let message = body["message"] as? String ?? "Reader rendering failed"
+            finish(.failure(ExportError.reader(message)))
+        default:
+            break
+        }
+    }
+
+    private func sendDocumentIfNeeded() {
+        guard !didSendDocument else { return }
+        didSendDocument = true
+        send(["type": "theme", "name": theme]) { [weak self] error in
+            guard let self else { return }
+            if let error {
+                self.finish(.failure(error))
+                return
+            }
+            self.send(self.document) { error in
+                if let error { self.finish(.failure(error)) }
+            }
+        }
+    }
+
+    private func requestPrintPreparationIfNeeded() {
+        guard !didRequestPrintPreparation else { return }
+        didRequestPrintPreparation = true
+        send(["type": "prepare-print"]) { [weak self] error in
+            if let error { self?.finish(.failure(error)) }
+        }
+    }
+
+    private func send(_ object: [String: Any], completion: @escaping (Error?) -> Void) {
+        guard let webView,
+              let data = try? JSONSerialization.data(withJSONObject: object),
+              let json = String(data: data, encoding: .utf8) else {
+            completion(ExportError.bridgeFailed)
+            return
+        }
+        webView.evaluateJavaScript("window.__mdeye && window.__mdeye.handle(\(json))") { _, error in
+            completion(error)
+        }
+    }
+
+    private func printPDF() {
+        guard let webView, !isFinished else { return }
+
+        let printInfo = NSPrintInfo.shared.copy() as! NSPrintInfo
+        printInfo.orientation = .portrait
+        printInfo.paperSize = Self.a4Size
+        printInfo.leftMargin = Self.margin
+        printInfo.rightMargin = Self.margin
+        printInfo.topMargin = Self.margin
+        printInfo.bottomMargin = Self.margin
+        printInfo.isHorizontallyCentered = false
+        printInfo.isVerticallyCentered = false
+        printInfo.horizontalPagination = .fit
+        printInfo.verticalPagination = .automatic
+        printInfo.jobDisposition = .save
+        let savingURLKey: NSPrintInfo.AttributeKey = .jobSavingURL
+        printInfo.dictionary()[savingURLKey] = temporaryURL
+
+        let operation = webView.printOperation(with: printInfo)
+        operation.showsPrintPanel = false
+        operation.showsProgressPanel = false
+
+        guard operation.run() else {
+            finish(.failure(ExportError.printFailed))
+            return
+        }
+        guard let pdf = PDFDocument(url: temporaryURL), pdf.pageCount > 0 else {
+            finish(.failure(ExportError.invalidPDF))
+            return
+        }
+        do {
+            let data = try Data(contentsOf: temporaryURL, options: .mappedIfSafe)
+            try data.write(to: outputURL, options: .atomic)
+        } catch {
+            finish(.failure(error))
+            return
+        }
+        finish(.success(()))
+    }
+
+    private func finish(_ result: Result<Void, Error>) {
+        guard !isFinished else { return }
+        isFinished = true
+        timeoutWorkItem?.cancel()
+        timeoutWorkItem = nil
+        webView?.stopLoading()
+        webView?.navigationDelegate = nil
+        webView?.configuration.userContentController.removeScriptMessageHandler(forName: "mdeye")
+        webView = nil
+        try? FileManager.default.removeItem(at: temporaryURL)
+        completion(result)
+    }
+
+    private enum ExportError: LocalizedError {
+        case invalidDocument
+        case bridgeFailed
+        case timedOut
+        case reader(String)
+        case printFailed
+        case invalidPDF
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidDocument: return "Document metadata is incomplete."
+            case .bridgeFailed: return "Could not communicate with the print renderer."
+            case .timedOut: return "The print renderer did not become ready in time."
+            case .reader(let message): return message
+            case .printFailed: return "The WebKit print operation failed."
+            case .invalidPDF: return "The generated file is not a valid PDF."
             }
         }
     }

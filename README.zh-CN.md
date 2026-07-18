@@ -157,13 +157,13 @@ README.zh-CN.md      # 中文
 
 ```text
 Swift (AppKit)
-  · main.swift 显式 NSApplication.run（另：--selftest 无头 CI 自检模式）
+  · main.swift 显式 NSApplication.run（另：--selftest / --pdf-selftest CI 自检模式）
   · 打开文件：open urls / openFile / openFiles（单文件：仅渲染最后一个 path）
   · mdeye-app:// 加载 UI（AppSchemeHandler）
   · mdeye-asset:// 提供本地图片（AssetSchemeHandler）
   · PathSandbox：两 handler 共用的相对路径拼接 + `..` 防护
   · WKScriptMessageHandler 桥接
-  · PDF 导出走 WKWebView.createPDF + 注入打印态 CSS + 桥接回传整篇高度 rect（不经 JS 拼 HTML）
+  · PDF 导出走独立 file-backed WKWebView + A4 NSPrintOperation 打印分页
         ↕
 Static reader (IIFE app.js，禁止 type=module)
   · markdown-it GFM + 大纲 + 主题
@@ -177,7 +177,7 @@ Static reader (IIFE app.js，禁止 type=module)
 3. 冷/热打开要保留 `latestDoc` 并在 JS ready / 重试后推送
 4. 图标必须在 `Contents/Resources/AppIcon.icns`，且圆角外需 **透明**
 5. 单文件阅读器：只渲染最后打开的 path，不做多窗口/标签
-6. 导出 **只做 PDF**，走原生 `WKWebView.createPDF` + 注入打印态 CSS + 桥接回传整篇 `scrollHeight` 设 rect（排除大纲/工具条、整篇分页），不在 JS 端重新拼装 HTML
+6. 导出 **只做 PDF**，走独立 file-backed WKWebView + `@media print` + A4 `NSPrintOperation`，不改动阅读 WebView
 
 更多细节见：[docs/architecture.md](docs/architecture.md)
 
@@ -194,7 +194,7 @@ Static reader (IIFE app.js，禁止 type=module)
 | `scripts/build-icon.sh` | 生成 `AppIcon.icns` |
 | `scripts/process-icon-alpha.py` | JPEG 黑角 → 透明 PNG（需本地 Pillow） |
 | `scripts/verify-open.sh` | 冷/热打开渲染冒烟（本机 GUI；会装入 /Applications） |
-| `scripts/ci-selftest.sh` | 无头 `--selftest` 渲染自检（无需 GUI；CI 用） |
+| `scripts/ci-selftest.sh` | 无头渲染 + 多页 PDF 导出自检（CI 用） |
 
 ---
 

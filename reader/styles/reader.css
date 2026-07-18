@@ -301,18 +301,28 @@ body {
   border-color: #8a4040;
 }
 
-/* 打印态：导出 PDF 走 WebKit 系统打印管线时，打印引擎自动应用本块。
-   屏幕阅读态完全不触发（无运行时注入、无恢复、无状态）。 */
+/* PDF export uses a dedicated WKWebView and WebKit's print pagination.
+   Paper size and 16 mm margins are configured by NSPrintInfo, not duplicated here. */
 @media print {
-  /* 排除大纲与工具条——不写入 PDF */
+  html[data-theme] {
+    --bg: #ffffff;
+    --bg-elevated: #ffffff;
+    --fg: #1a1a1a;
+    --fg-muted: #5f6368;
+    --border: #d9d9d6;
+    --link: #1a1a1a;
+    --code-bg: #f3f3f0;
+    --quote-border: #c8c8c2;
+    --table-stripe: #f6f6f3;
+    --shadow: transparent;
+    color-scheme: light;
+  }
+
   .outline,
   .toolbar {
     display: none !important;
   }
 
-  /* 正文从内部滚动容器改为撑开成完整高度，供打印引擎分页。
-     关键：把屏幕态的 flex 容器（#app / #main）压回普通流——Webkit 打印分页器
-     对 display:flex 容器有已知空白缺陷（flex item 跨页常被画成 0 高）。*/
   html,
   body,
   #app,
@@ -320,7 +330,16 @@ body {
   .markdown-body {
     display: block !important;
     height: auto !important;
+    min-height: 0 !important;
     overflow: visible !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: var(--fg) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .markdown-body {
@@ -329,34 +348,66 @@ body {
     padding: 0 !important;
   }
 
-  /* 打印时放宽阅读窄栏，让正文占满打印宽度 */
   .markdown-body > * {
     max-width: none !important;
+    margin-left: 0;
+    margin-right: 0;
   }
 
-  /* 链接不渲染彩色与下划线 */
   a {
     color: inherit !important;
     text-decoration: none !important;
   }
 
-  /* 标题不与正文分家、块级元素不被腰斩 */
   h1,
   h2,
   h3,
   h4 {
     break-after: avoid !important;
+    page-break-after: avoid;
   }
 
-  pre,
-  table,
+  p,
+  li,
+  blockquote {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .markdown-body pre {
+    overflow: visible;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    box-shadow: none;
+    break-inside: auto;
+  }
+
+  .markdown-body table {
+    display: table;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .markdown-body thead {
+    display: table-header-group;
+  }
+
+  .markdown-body tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .markdown-body img,
+  .markdown-body .mermaid-block svg {
+    max-width: 100%;
+    max-height: 250mm;
+    object-fit: contain;
+  }
+
   img,
-  blockquote,
   .mermaid-block {
     break-inside: avoid !important;
-  }
-
-  @page {
-    margin: 16mm;
+    page-break-inside: avoid;
   }
 }

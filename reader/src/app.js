@@ -12,6 +12,7 @@ const state = {
   theme: "light",
   outlineOpen: true,
   mermaidReady: false,
+  printPreparation: null,
 };
 
 function post(msg) {
@@ -146,6 +147,7 @@ async function showDoc({ path, text }) {
   const sameFile = path === state.path;
   state.path = path;
   state.text = text ?? "";
+  state.printPreparation = null;
   const title = basename(path);
   const titleEl = $("#doc-title");
   if (titleEl) titleEl.textContent = title;
@@ -179,6 +181,40 @@ async function showDoc({ path, text }) {
   });
 }
 
+async function preparePrint() {
+  if (state.printPreparation) return state.printPreparation;
+
+  state.printPreparation = (async () => {
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+
+    const images = [...document.images];
+    await Promise.all(
+      images.map(async (img) => {
+        if (!img.complete) {
+          await new Promise((resolve) => {
+            img.addEventListener("load", resolve, { once: true });
+            img.addEventListener("error", resolve, { once: true });
+          });
+        }
+        if (typeof img.decode === "function") {
+          await img.decode().catch(() => {});
+        }
+      })
+    );
+
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    post({ type: "print-ready" });
+  })().catch((err) => {
+    state.printPreparation = null;
+    post({ type: "error", message: `Print preparation failed: ${String(err?.message || err)}` });
+  });
+
+  return state.printPreparation;
+}
+
 function showEmpty() {
   state.path = null;
   state.text = "";
@@ -209,6 +245,9 @@ function handleNativeEvent(msg) {
         break;
       case "toggle-outline":
         toggleOutline();
+        break;
+      case "prepare-print":
+        preparePrint();
         break;
       case "ping":
         post({ type: "pong", version: window.__mdeyeVersion || "unknown" });
