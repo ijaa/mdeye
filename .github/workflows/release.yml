@@ -9,7 +9,7 @@ on:
       version:
         description: "Version label for dmg name (tag overrides; defaults to App/Info.plist version)"
         required: false
-        default: "0.4.0"
+        default: "0.6.0"
 
 permissions:
   contents: write
@@ -32,7 +32,7 @@ jobs:
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             V="${GITHUB_REF_NAME#v}"
           else
-            V="${{ github.event.inputs.version || '0.4.0' }}"
+            V="${{ github.event.inputs.version || '0.6.0' }}"
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
 
@@ -61,23 +61,24 @@ jobs:
           files: |
             build/mdeye-*.dmg
           body: |
-            ## MDEye ${{ steps.ver.outputs.version }} (full)
+            ## MDEye ${{ steps.ver.outputs.version }}
 
-            Full offline pack: **GFM + Mermaid + themes + HTML export**.
-            Unsigned self-use build (no Apple Developer signing).
+            完整离线包：**GFM + Mermaid + 四套主题 + PDF 导出**。
+            本版本新增工具栏 PDF 快捷按钮，首次启动默认使用 Sepia 主题。
+            当前为未签名自用构建（无 Apple Developer 签名）。
 
-            ### Install
-            1. Open the dmg / unzip and drag **mdeye.app** to **Applications**
-            2. First launch: **System Settings → Privacy & Security → Open Anyway**
-            3. In app: **MDEye → Set as Default Markdown App…**
-               - Or Finder: select `.md` → Get Info (`⌘I`) → Open with MDEye → **Change All…**
+            ### 安装
+            1. 打开 dmg，将 **mdeye.app** 拖入 **Applications**
+            2. 首次启动若被拦截：**系统设置 → 隐私与安全性 → 仍要打开**
+            3. 在应用内选择：**MDEye → Set as Default Markdown App…**
+               - 或在 Finder 中选择 `.md` → 显示简介（`⌘I`）→ 打开方式 → MDEye → **全部更改…**
 
-            ### First open (method B)
-            1. Open `MDEye` (if blocked, dismiss the alert)
-            2. **System Settings → Privacy & Security**
-            3. Find the message that **MDEye** was blocked
-            4. Click **Open Anyway**, confirm **Open**
+            ### 首次打开
+            1. 尝试打开 `MDEye`，若被阻止则关闭提示
+            2. 打开 **系统设置 → 隐私与安全性**
+            3. 找到 MDEye 被阻止的提示
+            4. 点击 **仍要打开** 并确认
 
-            Then double-click any `.md` file to read.
+            完成后可双击任意 `.md` 文件阅读。
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -11,6 +11,7 @@
 App/Assets/AppIcon.iconset/
 DerivedData/
 build/
+tmp/
 node_modules/
 reader/dist/
 reader/node_modules/

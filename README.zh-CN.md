@@ -6,7 +6,7 @@
 
 灵感来自 [MDView](https://www.mdview.cn/)。
 
-**当前版本：v0.4.0** · [Releases](https://github.com/ijaa/mdeye/releases)
+**当前版本：v0.6.0** · [Releases](https://github.com/ijaa/mdeye/releases)
 
 **语言：** [English](README.md) | 中文
 
@@ -19,9 +19,9 @@
 - **Mermaid** 图表（完整打包、离线）
 - 磁盘文件变更后自动刷新
 - 大纲（H1–H3）
-- 主题：Light / Dark / Sepia / Green
+- 主题：Light / Dark / Sepia / Green（默认 Sepia）
 - 本地相对路径图片（限制在 md 所在目录树）
-- 导出 PDF
+- 从工具栏或 MDEye 菜单导出 PDF
 - 全离线、无遥测
 - **Universal Binary**（Apple Silicon `arm64` + Intel `x86_64`）
 - 自定义圆角图标（透明角，无黑边）
@@ -57,6 +57,14 @@
 
 ---
 
+## PDF 导出
+
+PDF 导出使用独立打印 WebView，复用应用内相同的 Markdown 渲染管线，包括代码高亮、本地图片和 Mermaid。字体、图片、图表与布局稳定后，再由 WebKit 原生打印管线按 A4、16 mm 边距分页。打印专用 CSS 会移除阅读控件并使用适合纸张的浅色主题，因此正文内容和排版与应用保持一致，但导航界面与屏幕主题颜色会被有意排除。
+
+导出过程不会修改正在阅读的 WebView。CI 会用长文档走生产导出协调器，验证真实多页 PDF，并把 `pdf-selftest.pdf` 与 `mdeye.app` 一起放入 `mdeye-app` artifact。
+
+---
+
 ## 开发
 
 ### 只改阅读器前端
@@ -85,17 +93,17 @@ npm test
 ./scripts/ci-xcodebuild.sh
 # → build/mdeye.app（强制 arm64 + x86_64）
 
-VERSION=0.4.0 ./scripts/package-dmg.sh
-# → build/mdeye-0.4.0.dmg
+VERSION=0.6.0 ./scripts/package-dmg.sh
+# → build/mdeye-0.6.0.dmg
 ```
 
 ### 无 Xcode
 
-`git push` / 打 tag → Actions 产出 unsigned `.app` / `.dmg`。
+push 和 pull request 会执行完整 App 构建与 PDF 自检。如需不打 tag 主动构建，可进入 **Actions → CI → Run workflow**；`mac-app` job 成功后下载 `mdeye-app` artifact。发布 tag 才会产出 unsigned `.dmg`。
 
 ```bash
-git tag v0.2.x
-git push origin v0.2.x
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 ### 图标
@@ -200,8 +208,8 @@ Static reader (IIFE app.js，禁止 type=module)
 
 ## 版本与发布
 
-- 版本号：`App/Info.plist` 的 `CFBundleShortVersionString` / `CFBundleVersion`（当前 **0.4.0 / 12**）
-- CI：push → 构建 + 结构门禁（IIFE、通用二进制、图标路径）
+- 版本号：`App/Info.plist` 的 `CFBundleShortVersionString` / `CFBundleVersion`（当前 **0.6.0 / 14**）
+- CI：push / pull request / 手动 `workflow_dispatch` → App 构建、结构门禁、渲染自检与生产多页 PDF 导出自检
 - Release：tag `v*` → dmg + GitHub Release 说明（含「仍要打开」）
 
 当前为 **未签名自用构建**（无需 Apple Developer 年费）。公开分发再考虑 Developer ID + 公证。

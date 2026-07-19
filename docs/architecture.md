@@ -1,4 +1,4 @@
-# MDEye Architecture (implementation · v0.4.0)
+# MDEye Architecture (implementation · v0.6.0)
 
 > 中文说明：本文件为技术架构文档（原「技术方案」）。
 
@@ -8,7 +8,7 @@
 > **架构**：Swift 薄壳 + WKWebView + 静态 reader（IIFE）  
 > **工程**：本地可不装 Xcode；**GitHub Actions** 编译打包  
 > **分发**：无 Apple Developer 证书；unsigned + **系统设置 → 隐私与安全性 → 仍要打开**  
-> **代码版本**：`CFBundleShortVersionString` **0.4.0** / `CFBundleVersion` **12**
+> **代码版本**：`CFBundleShortVersionString` **0.6.0** / `CFBundleVersion` **14**
 
 本文档描述 **当前仓库真实实现**，并保留产品决策与踩坑结论。历史「拆包 Mermaid / Tauri / 5–10MB 目标」等过程选项已收敛为下列定案。
 
@@ -47,7 +47,7 @@
 | 专注阅读 | 大纲、主题；不提供编辑；**始终只渲染一个文件（多选后打开取最后一个）** |
 | 实时预览 | 外部编辑器保存 → 自动重渲染 |
 | Mermaid | 离线渲染（flowchart / sequence 等） |
-| 多主题 | Light / Dark / Sepia / Green |
+| 多主题 | Light / Dark / Sepia / Green；默认 Sepia |
 | PDF 导出 | 独立 file-backed `WKWebView` 渲染同一 reader，收到 `print-ready` 后由 `NSPrintOperation` 按 A4 + 16mm 边距分页并直接保存 |
 
 ### 1.2 明确不做
@@ -81,7 +81,8 @@
 │  AssetSchemeHandler：mdeye-asset://local/...             │
 │  PathSandbox：两 handler 共用相对路径拼接 + .. 防护          │
 │  FileService / FileWatcher / DefaultAppService            │
-│  SelfTest：--selftest 无头渲染自检（CI 用）                 │
+│  PDFExportCoordinator：独立打印 WebView + NSPrintOperation │
+│  SelfTest：--selftest / --pdf-selftest（CI 用）             │
 └───────────────────────────▲──────────────────────────────┘
                             │ WKScriptMessageHandler "mdeye"
 ┌───────────────────────────┴──────────────────────────────┐
@@ -132,7 +133,7 @@
 
 ### 3.2 系统集成
 
-- 菜单：打开、重载、导出（PDF）、Finder、编辑器、大纲、主题、设为默认
+- 菜单与工具栏：打开、重载、导出（PDF）、Finder、编辑器、大纲、主题、设为默认；工具栏 PDF 按钮复用原生导出协调器
 - 拖放打开
 - **单文件语义**：`AppDelegate` 对同时到达的多个文件只渲染最后一个（始终一个文档），不做多窗口/标签
 - 文档类型 `LSHandlerRank = Owner` + 导出 UTI `app.mdeye.markdown`
@@ -170,16 +171,16 @@
 
 | 文件 | 职责 |
 |------|------|
-| `main.swift` | `NSApplication` + `run()` |
+| `main.swift` | `NSApplication` + `run()`；分派 `--selftest` / `--pdf-selftest` |
 | `AppDelegate.swift` | 生命周期、打开文件队列 |
 | `MainWindowController.swift` | 窗口与菜单 |
-| `ReaderViewController.swift` | WebView、桥接、推送文档 |
+| `ReaderViewController.swift` | 阅读 WebView、桥接、推送文档；内含独立 `PDFExportCoordinator` |
 | `AppSchemeHandler.swift` | `mdeye-app` |
 | `AssetSchemeHandler.swift` | `mdeye-asset` |
 | `FileService.swift` | 读文件、路径沙箱（经 `PathSandbox`） |
 | `FileWatcher.swift` | 变更热更新 |
 | `PathSandbox.swift` | `mdeye-app`/`mdeye-asset` 共用相对路径拼接 + `..` 逃逸防护 |
-| `SelfTest.swift` | `--selftest` 无头渲染自检（CI 用，离屏 `WKWebView`） |
+| `SelfTest.swift` | `--selftest` 无头渲染自检；PDF 自检由 `main.swift` 调用生产协调器 |
 | `DefaultAppService.swift` | 默认打开方式 |
 | `Preferences.swift` | 主题等偏好 |
 
@@ -191,7 +192,7 @@
 | Markdown | markdown-it + markdown-it-anchor + markdown-it-task-lists |
 | 高亮 | highlight.js 按需语言 |
 | 图表 | **mermaid** 静态 import |
-| CSP | `default-src 'none'`；script/style 限 `self` 与 `mdeye-app:`；img 允许 `mdeye-asset:` / data |
+| CSP | `default-src 'none'`；阅读路径允许 `self` / `mdeye-app:`；打印路径额外允许 `file:` 读取随包脚本、样式和字体；图片允许 `mdeye-asset:` / data |
 
 入口：`reader/src/app.js`、`reader/src/md.js` → 产出 `reader/dist/app.js`（约 2.8 MB minify）。
 
@@ -202,6 +203,7 @@
 - `{ type: "doc", path, baseDir, text, encoding, mtimeMs }`
 - `{ type: "theme", name }`
 - `{ type: "toggle-outline" }`
+- `{ type: "prepare-print" }`（仅打印 WebView）
 
 **JS → Swift**（`webkit.messageHandlers.mdeye`）：
 
@@ -212,7 +214,7 @@
 - `{ type: "print-ready" }`（仅打印 WebView：字体、图片、Mermaid 与布局稳定，可以启动打印）
 - open-in-editor / reveal-in-finder / error
 
-> **PDF 导出桥接**：Swift 向独立打印 WebView 发送 `{type:"prepare-print"}`；JS 等待 `document.fonts.ready`、全部图片以及两帧布局后回传 `{type:"print-ready"}`。分页与落盘由 `NSPrintOperation` 完成，纸张参数不由 DOM 尺寸推断。
+> **PDF 导出桥接**：Swift 向独立打印 WebView 发送 `{type:"prepare-print"}`；JS 等待 `document.fonts.ready`、全部图片、Mermaid 以及两帧布局后回传 `{type:"print-ready"}`。离屏环境的 `requestAnimationFrame` 可能暂停，因此实现还保留定时器唤醒。分页与落盘由 `NSPrintOperation` 完成，纸张参数不由 DOM 尺寸推断。
 
 推送实现优先 `callAsyncJavaScript`，失败则 base64 `evaluateJavaScript` 回退；未 ready 时保留 `latestDoc` 并重试。
 
@@ -259,7 +261,7 @@ mdeye/
 │   ├── build-icon.sh
 │   ├── process-icon-alpha.py
 │   ├── verify-open.sh        # 本机 GUI 烟测
-│   └── ci-selftest.sh        # 无头 selftest（CI 用）
+│   └── ci-selftest.sh        # 无头渲染 + 多页 PDF 自检（CI 用）
 ├── fixtures/sample.md
 ├── .github/workflows/{ci,release}.yml
 ├── docs/architecture.md
@@ -284,8 +286,26 @@ mdeye/
    - `app.js` 非 ESM 开头、含 `__mdeye`
    - 二进制含 **x86_64 与 arm64**
    - 存在 **`Contents/Resources/AppIcon.icns`**
-5. **Headless 自检**：`ci-selftest.sh` 跑 `mdeye --selftest`，断言 `/tmp/mdeye-last-shown.json` 匹配 fixture（无 GUI 会话下证渲染管线）  
-6. 上传 artifact `mdeye-app`
+5. **Headless 自检**：`ci-selftest.sh` 先跑 `mdeye --selftest`，断言 `/tmp/mdeye-last-shown.json` 匹配 fixture；再跑 `mdeye --pdf-selftest <md> <pdf>`，复用生产打印协调器生成并用 PDFKit 校验至少两页的真实 PDF
+6. 上传 artifact `mdeye-app`，其中包含 `build/mdeye.app` 与 `build/pdf-selftest.pdf`
+
+### 7.1.1 无 Xcode 时的预览包人工验证
+
+CI 构建来源是远端 commit，而不是本地工作区。待验证改动应先提交并 push 到目标分支，但无需创建 tag。使用 GitHub CLI 手动打包并下载：
+
+```bash
+gh workflow run CI --ref main
+# 从返回的 Actions URL 获取 run ID，例如 29668349902
+CI_RUN_ID=29668349902
+gh run watch "$CI_RUN_ID" --exit-status
+
+CI_PREVIEW_DIR="tmp/ci-preview-$CI_RUN_ID"
+mkdir -p "$CI_PREVIEW_DIR"
+gh run download "$CI_RUN_ID" --name mdeye-app --dir "$CI_PREVIEW_DIR"
+open "$CI_PREVIEW_DIR/mdeye.app"
+```
+
+人工验证前必须确认 `reader`、Universal 编译、Bundle/IIFE/图标门禁以及渲染/多页 PDF 自检均成功。下载目录统一使用 `tmp/ci-preview-<run-id>/`，例如 `tmp/ci-preview-29668349902/`；artifact 内应有 `mdeye.app/` 与 `pdf-selftest.pdf`。`tmp/` 已在 `.gitignore` 中，预览 App 和 PDF 仅供本地验证，不得提交。
 
 ### 7.2 `release.yml`
 
@@ -297,18 +317,19 @@ mdeye/
 
 > **Swift 改动严禁跳过编译直接打 tag 发布。**
 
-0.5.0 把 PDF 导出从原生 `createPDF` 切到系统打印管线时，本机无 Xcode 无法预编译，靠记忆猜 AppKit/WebKit API，连续两次编译失败 → 反复 force-update tag 重跑 `release.yml`：
+0.5.0 首次把 PDF 导出从原生 `createPDF` 切到系统打印管线时，本机无 Xcode 无法预编译，靠记忆猜 AppKit/WebKit API，连续两次编译失败 → 反复 force-update tag 重跑 `release.yml`。以下仅为**历史失败记录**：
 
 1. 误用 `guard let printOp = webView.printOperation(with:)` —— 返回值非可选，不允许条件绑定。
-2. 误把 `runOperationModal(for:delegate:didRun:contextInfo:)` 当成 `NSPrintOperation` 的方法（实际是 `NSPrintPanel` 的），且 `runOperation()` 在 macOS 12 SDK 已 rename 为 `run()`。
-3. 最终正确入口只是 `printOp.run()`。
+2. 误用了与实际 SDK 不匹配的 modal API 名称，且 `runOperation()` 在 macOS 12 SDK 已 rename 为 `run()`。
+3. 当时临时改用同步 `printOp.run()`，后续现行实现已切为验证可编译的异步 `runModal(for:delegate:didRun:contextInfo:)`。
 
 守则：
 
-- 不靠记忆/猜测 Swift API 签名；以当前 SDK 表里方法名为准（`NSPrintOperation` 的运行入口是 `run()`，打印面板由 `showsPrintPanel` 开关驱动，不是手动 `runOperationModal`）。
+- 不靠记忆/猜测 Swift API 签名；以 CI 当前 SDK 编译结果为准。`webView.printOperation(with:)` 返回非可选 `NSPrintOperation`；现行路径使用 `runModal(for:delegate:didRun:contextInfo:)`，并关闭打印/进度面板。
+- `canSpawnSeparateThread = true` 时打印完成回调可能位于工作线程；PDFKit 验证、原子写入、完成回调和隐藏窗口清理必须回到主线程。
 - 本机有 Xcode 跑 `./scripts/ci-xcodebuild.sh` 出 Universal 二进制再打 tag；本机无 Xcode 时改 Swift 也应先 push 到普通分支让 `ci.yml` 的 `mac-app` job 编译通过后再 tag。
-- 可选安全网（建议采纳）：让 `ci.yml` 在 push 到 `main` 即触发 `mac-app` 编译 job，使"push 后立即知编译错"，而非"tag 后才在 `release.yml` 末段暴露"。
-- 覆盖盲区：无头 `--selftest` 只验渲染到 `doc-shown`；打印面板 / `NSSavePanel` / PDF 落盘等 GUI 交互**不在 CI 覆盖**，改这些路径须本机 GUI 手测。
+- `ci.yml` 已在 push 到 `main`、pull request 与 `workflow_dispatch` 时运行 `mac-app` 编译和 PDF 自检，使 Swift API 错误在发版前暴露。
+- 覆盖边界：CI 已覆盖生产 PDF 渲染、资源等待、分页与有效多页落盘；仅 `NSSavePanel` 的用户交互仍需本机 GUI 烟测。
 
 ### 7.3 自用打开（方式 B）
 
@@ -389,11 +410,12 @@ mdeye/
 | 0.2.4–0.2.5 | 图标路径错误 | 扁平 AppIcon.icns |
 | 0.2.6 | 圆角素材 | 换源图 |
 | 0.2.7–0.2.8 | 黑角 / CI 无 Pillow | 透明处理 + 提交透明资产 |
-| 0.3.0 | HTML→PDF 导出 / 多文件静默覆盖 / 版本漂移 / 沙箱不一致 / CI 无渲染验证 | 原生 createPDF + 单文件语义 + 版本单源注入 + PathSandbox + headless --selftest |
+| 0.3.0（历史） | HTML→PDF 导出 / 多文件静默覆盖 / 版本漂移 / 沙箱不一致 / CI 无渲染验证 | 当时改为原生 `createPDF` + 单文件语义 + 版本单源注入 + PathSandbox + headless `--selftest` |
 | 0.4.0 | 原 `createPDF` 空构造只截一屏 + 大纲/工具条被写入 PDF + 机械切片分页差 | 改走 WebKit 系统打印管线（`NSPrintOperation`）+ reader.css `@media print`（排除大纲/工具条、`break-*` 控分页） |
 | 0.5.0 | 文档内 .md 链接点击无反应（裸跳自定义协议必败）；协议 MIT→Apache-2.0 | 正文 click 委托 + 桥接 `open-md-link`，复用 `FileService.resolveAsset` 同树沙箱解析 → `openFile` 单文件替换 |
 | 0.5.0（教训） | 切 PDF 到打印管线时本机无 Xcode，靠记忆猜 `NSPrintOperation` API → 连续两次 `release.yml` 编译失败、来回 force-update tag | 守则：Swift 改动 push 前必须过编译（本机 `ci-xcodebuild.sh` 或让 `ci.yml` push-to-main 跑 `mac-app`），打印/PDF 等 GUI 路径需手测；不靠记忆猜 API |
-| 0.5.1 | PDF 导出空白 + 只截一屏：系统打印面板「另存为 PDF」对自定义协议 webview 输出空白（预览却有内容）；`callAsyncJavaScript` 在自定义协议 webview 返回 nil → 拿不到 JS 实测尺寸 → rect 退回视口 → 只截一屏 | 回到原生 `createPDF` 直出 Data 写盘；注入打印态 CSS + 经桥接 `export-pdf-measured {width,height}` 取整篇 `scrollHeight` 设 `rect`，绕开 callAsyncJavaScript 与系统打印面板两条失效路径 |
+| 后续迭代（历史尝试） | PDF 导出空白 + 只截一屏：系统打印面板「另存为 PDF」对自定义协议 WebView 输出空白（预览却有内容）；`callAsyncJavaScript` 在自定义协议 WebView 返回 nil | 当时回到 `createPDF` + `export-pdf-measured`；该方案现已废弃，不得作为当前实现参考 |
+| 当前实现 | `createPDF` 的连续画布、屏幕布局污染、离屏帧暂停以及打印回调线程问题 | 独立 file-backed WebView + 隐藏 `NSWindow` + `prepare-print`/`print-ready` + A4 `NSPrintOperation.runModal`；主线程完成 PDFKit 验证与原子写入；CI 保留真实多页 PDF artifact |
 
 ## 附录 B. 参考
 

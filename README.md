@@ -6,7 +6,7 @@ Local-first **Markdown reader for macOS** (not an editor / note vault).
 
 Inspired by [MDView](https://www.mdview.cn/).
 
-**Current version: v0.4.0** · [Releases](https://github.com/ijaa/mdeye/releases)
+**Current version: v0.6.0** · [Releases](https://github.com/ijaa/mdeye/releases)
 
 **Languages:** English | [中文](README.zh-CN.md)
 
@@ -19,9 +19,9 @@ Inspired by [MDView](https://www.mdview.cn/).
 - **Mermaid** diagrams (bundled, offline)
 - Auto-refresh when the file changes on disk
 - Outline (H1–H3)
-- Themes: Light / Dark / Sepia / Green
+- Themes: Light / Dark / Sepia / Green (Sepia by default)
 - Local relative images (sandboxed to the markdown folder tree)
-- Export PDF
+- Export PDF from the toolbar or the MDEye menu
 - Fully offline, no telemetry
 - **Universal Binary** (Apple Silicon `arm64` + Intel `x86_64`)
 - Custom rounded app icon (transparent corners, no black frame)
@@ -57,6 +57,14 @@ Menu **MDEye → Set as Default Markdown App…**
 
 ---
 
+## PDF export
+
+PDF export uses a dedicated print WebView that renders the same Markdown pipeline as the reader, including code highlighting, local images, and Mermaid. It waits for fonts, images, diagrams, and layout to stabilize, then uses the native WebKit print pipeline to paginate onto A4 paper with 16 mm margins. Print-specific CSS removes reading controls and uses a paper-friendly light theme, so the document content and typography remain aligned with the app while navigation chrome and screen theme colors are intentionally excluded.
+
+The reading WebView is not modified during export. CI runs the production export coordinator against a long fixture, validates a real multi-page PDF, and includes `pdf-selftest.pdf` in the `mdeye-app` artifact.
+
+---
+
 ## Development
 
 ### Reader frontend only
@@ -85,17 +93,17 @@ Sync build output into the app bundle resources:
 ./scripts/ci-xcodebuild.sh
 # → build/mdeye.app (forces arm64 + x86_64)
 
-VERSION=0.4.0 ./scripts/package-dmg.sh
-# → build/mdeye-0.4.0.dmg
+VERSION=0.6.0 ./scripts/package-dmg.sh
+# → build/mdeye-0.6.0.dmg
 ```
 
 ### Without Xcode
 
-`git push` / tag → Actions produces unsigned `.app` / `.dmg`.
+Pushes and pull requests run the full app build and PDF self-test. To build without creating a tag, open **Actions → CI → Run workflow**; download the `mdeye-app` artifact after the `mac-app` job succeeds. Release tags produce the unsigned `.dmg`.
 
 ```bash
-git tag v0.2.x
-git push origin v0.2.x
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 ### App icon
@@ -200,8 +208,8 @@ More detail: [docs/architecture.md](docs/architecture.md)
 
 ## Version & release
 
-- Version: `CFBundleShortVersionString` / `CFBundleVersion` in `App/Info.plist` (currently **0.4.0 / 12**)
-- CI: push → build + structural gates (IIFE, universal binary, icon path)
+- Version: `CFBundleShortVersionString` / `CFBundleVersion` in `App/Info.plist` (currently **0.6.0 / 14**)
+- CI: push / pull request / manual `workflow_dispatch` → app build, structural gates, render self-test, and production multi-page PDF export self-test
 - Release: tag `v*` → dmg + GitHub Release notes (includes Open Anyway steps)
 
 Builds are **unsigned self-use** (no Apple Developer fee). Consider Developer ID + notarization only for public distribution.
