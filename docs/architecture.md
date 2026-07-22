@@ -1,4 +1,4 @@
-# MDEye Architecture (implementation · v0.6.0)
+# MDEye Architecture (implementation · v0.7.0)
 
 > 中文说明：本文件为技术架构文档（原「技术方案」）。
 
@@ -8,7 +8,7 @@
 > **架构**：Swift 薄壳 + WKWebView + 静态 reader（IIFE）  
 > **工程**：本地可不装 Xcode；**GitHub Actions** 编译打包  
 > **分发**：无 Apple Developer 证书；unsigned + **系统设置 → 隐私与安全性 → 仍要打开**  
-> **代码版本**：`CFBundleShortVersionString` **0.6.0** / `CFBundleVersion` **14**
+> **代码版本**：`CFBundleShortVersionString` **0.7.0** / `CFBundleVersion` **15**
 
 本文档描述 **当前仓库真实实现**，并保留产品决策与踩坑结论。历史「拆包 Mermaid / Tauri / 5–10MB 目标」等过程选项已收敛为下列定案。
 
@@ -41,13 +41,19 @@
 
 | 目标 | 含义 |
 |------|------|
-| 小体积 | 相对 Electron 很小；完整包含 Mermaid 后 dmg 约 **~1.5–2 MB** 量级（压缩后），`.app` 内 JS 约 **2.8 MB** |
+| 小体积 | 相对 Electron 很小；完整包含 Mermaid + KaTeX 后 dmg 约 **~1.5–2 MB** 量级（压缩后），`.app` 内 JS 约 **3.1 MB** |
 | 快启动 | 中等文档亚秒～秒级可读（首次加载 IIFE 略重） |
 | 不登录 / 不联网 / 不打扰 | 无账号、无遥测、无 CDN |
-| 专注阅读 | 大纲、主题；不提供编辑；**始终只渲染一个文件（多选后打开取最后一个）** |
+| 专注阅读 | 大纲、主题、字号/栏宽缩放、文内查找；不提供编辑；**始终只渲染一个文件（多选后打开取最后一个）** |
 | 实时预览 | 外部编辑器保存 → 自动重渲染 |
 | Mermaid | 离线渲染（flowchart / sequence 等） |
+| 数学公式 | KaTeX 离线渲染（$inline$ 与 $$display$$） |
 | 多主题 | Light / Dark / Sepia / Green；默认 Sepia |
+| 字号/栏宽 | ⌘+/⌘-/⌘0 缩放字号（85%–200%），⌥+/⌥- 调整栏宽（600–1100px），持久化偏好 |
+| 文内查找 | ⌘F/⌘G/⇧⌘G TreeWalker 高亮匹配 |
+| 中文编码 | GB18030 探测支持（跨平台 CFStringConvert） |
+| 编辑器集成 | Open in Editor 快速跳转 TextEdit；富文本格式检测与轻提示 |
+| 冷启动恢复 | 自动恢复上次打开的文件 |
 | PDF 导出 | 独立 file-backed `WKWebView` 渲染同一 reader，收到 `print-ready` 后由 `NSPrintOperation` 按 A4 + 16mm 边距分页并直接保存 |
 
 ### 1.2 明确不做

@@ -6,7 +6,7 @@ Local-first **Markdown reader for macOS** (not an editor / note vault).
 
 Inspired by [MDView](https://www.mdview.cn/).
 
-**Current version: v0.6.0** · [Releases](https://github.com/ijaa/mdeye/releases)
+**Current version: v0.7.0** · [Releases](https://github.com/ijaa/mdeye/releases)
 
 **Languages:** English | [中文](README.zh-CN.md)
 
@@ -17,11 +17,18 @@ Inspired by [MDView](https://www.mdview.cn/).
 - Open / drag-drop / **double-click** `.md` (can be set as default app)
 - GFM: tables, task lists, autolinks, etc.
 - **Mermaid** diagrams (bundled, offline)
+- **KaTeX** math formulas ($inline$ and $$display$$, offline)
 - Auto-refresh when the file changes on disk
 - Outline (H1–H3)
 - Themes: Light / Dark / Sepia / Green (Sepia by default)
+- **Font size scaling** (⌘+/⌘-/⌘0, 85%–200%)
+- **Content width adjustment** (⌥+/⌥-, 600–1100px)
+- **In-document search** (⌘F/⌘G/⇧⌘G)
+- **Cold-start restore** last opened file
+- **GB18030** Chinese encoding support
 - Local relative images (sandboxed to the markdown folder tree)
 - Export PDF from the toolbar or the MDEye menu
+- **Open in Editor** quick jump to TextEdit
 - Fully offline, no telemetry
 - **Universal Binary** (Apple Silicon `arm64` + Intel `x86_64`)
 - Custom rounded app icon (transparent corners, no black frame)
@@ -93,8 +100,8 @@ Sync build output into the app bundle resources:
 ./scripts/ci-xcodebuild.sh
 # → build/mdeye.app (forces arm64 + x86_64)
 
-VERSION=0.6.0 ./scripts/package-dmg.sh
-# → build/mdeye-0.6.0.dmg
+VERSION=0.7.0 ./scripts/package-dmg.sh
+# → build/mdeye-0.7.0.dmg
 ```
 
 ### Without Xcode
@@ -208,7 +215,7 @@ More detail: [docs/architecture.md](docs/architecture.md)
 
 ## Version & release
 
-- Version: `CFBundleShortVersionString` / `CFBundleVersion` in `App/Info.plist` (currently **0.6.0 / 14**)
+- Version: `CFBundleShortVersionString` / `CFBundleVersion` in `App/Info.plist` (currently **0.7.0 / 15**)
 - CI: push / pull request / manual `workflow_dispatch` → app build, structural gates, render self-test, and production multi-page PDF export self-test
 - Release: tag `v*` → dmg + GitHub Release notes (includes Open Anyway steps)
 

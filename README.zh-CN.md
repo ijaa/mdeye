@@ -6,7 +6,7 @@
 
 灵感来自 [MDView](https://www.mdview.cn/)。
 
-**当前版本：v0.6.0** · [Releases](https://github.com/ijaa/mdeye/releases)
+**当前版本：v0.7.0** · [Releases](https://github.com/ijaa/mdeye/releases)
 
 **语言：** [English](README.md) | 中文
 
@@ -17,11 +17,18 @@
 - 打开 / 拖放 / **双击** `.md`（可设为默认应用）
 - GFM：表格、任务列表、自动链接等
 - **Mermaid** 图表（完整打包、离线）
+- **KaTeX** 数学公式（$inline$ 与 $$display$$，离线）
 - 磁盘文件变更后自动刷新
 - 大纲（H1–H3）
 - 主题：Light / Dark / Sepia / Green（默认 Sepia）
+- **字号缩放**（⌘+/⌘-/⌘0，85%–200%）
+- **栏宽调整**（⌥+/⌥-，600–1100px）
+- **文内查找**（⌘F/⌘G/⇧⌘G）
+- **冷启动恢复**上次打开的文件
+- **GB18030** 中文编码支持
 - 本地相对路径图片（限制在 md 所在目录树）
 - 从工具栏或 MDEye 菜单导出 PDF
+- **Open in Editor** 快速跳转 TextEdit 编辑
 - 全离线、无遥测
 - **Universal Binary**（Apple Silicon `arm64` + Intel `x86_64`）
 - 自定义圆角图标（透明角，无黑边）
@@ -93,8 +100,8 @@ npm test
 ./scripts/ci-xcodebuild.sh
 # → build/mdeye.app（强制 arm64 + x86_64）
 
-VERSION=0.6.0 ./scripts/package-dmg.sh
-# → build/mdeye-0.6.0.dmg
+VERSION=0.7.0 ./scripts/package-dmg.sh
+# → build/mdeye-0.7.0.dmg
 ```
 
 ### 无 Xcode
@@ -208,7 +215,7 @@ Static reader (IIFE app.js，禁止 type=module)
 
 ## 版本与发布
 
-- 版本号：`App/Info.plist` 的 `CFBundleShortVersionString` / `CFBundleVersion`（当前 **0.6.0 / 14**）
+- 版本号：`App/Info.plist` 的 `CFBundleShortVersionString` / `CFBundleVersion`（当前 **0.7.0 / 15**）
 - CI：push / pull request / 手动 `workflow_dispatch` → App 构建、结构门禁、渲染自检与生产多页 PDF 导出自检
 - Release：tag `v*` → dmg + GitHub Release 说明（含「仍要打开」）
 
