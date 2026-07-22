@@ -1,0 +1,43 @@
+/* App Menu */
+"About MDEye" = "关于 MDEye";
+"Set as Default Markdown App…" = "设为默认 Markdown 应用…";
+"Quit MDEye" = "退出 MDEye";
+
+/* File Menu */
+"File" = "文件";
+"Open…" = "打开…";
+"Reload" = "重新加载";
+"Export PDF…" = "导出 PDF…";
+"Reveal in Finder" = "在访达中显示";
+"Open in Editor" = "在编辑器中打开";
+
+/* Edit Menu */
+"Edit" = "编辑";
+"Find in Document…" = "在文稿中查找…";
+"Find Next" = "查找下一个";
+"Find Previous" = "查找上一个";
+"Find Tooltip" = "由阅读器处理（⌘F 打开，⌘G/⇧⌘G 导航，Esc 关闭）";
+
+/* View Menu */
+"View" = "视图";
+"Toggle Outline" = "切换大纲";
+"Theme: Light" = "主题：浅色";
+"Theme: Dark" = "主题：深色";
+"Theme: Sepia" = "主题：棕褐";
+"Theme: Green" = "主题：护眼绿";
+"Zoom In (Text)" = "放大（文字）";
+"Zoom Out (Text)" = "缩小（文字）";
+"Reset Text Zoom" = "重置文字缩放";
+"Widen Column" = "加宽栏目";
+"Narrow Column" = "收窄栏目";
+"Zoom In Tooltip" = "增大字号（85%–200%）";
+"Zoom Out Tooltip" = "减小字号（85%–200%）";
+"Reset Zoom Tooltip" = "重置字号为 100%";
+"Widen Tooltip" = "增加内容宽度（600–1100px）";
+"Narrow Tooltip" = "减少内容宽度（600–1100px）";
+
+/* Window Menu */
+"Window" = "窗口";
+"Bring All to Front" = "全部前置";
+"Minimize" = "最小化";
+"Zoom" = "缩放";

@@ -1,0 +1,43 @@
+/* App Menu */
+"About MDEye" = "About MDEye";
+"Set as Default Markdown App…" = "Set as Default Markdown App…";
+"Quit MDEye" = "Quit MDEye";
+
+/* File Menu */
+"File" = "File";
+"Open…" = "Open…";
+"Reload" = "Reload";
+"Export PDF…" = "Export PDF…";
+"Reveal in Finder" = "Reveal in Finder";
+"Open in Editor" = "Open in Editor";
+
+/* Edit Menu */
+"Edit" = "Edit";
+"Find in Document…" = "Find in Document…";
+"Find Next" = "Find Next";
+"Find Previous" = "Find Previous";
+"Find Tooltip" = "Handled by reader (⌘F to open, ⌘G/⇧⌘G to navigate, Esc to close)";
+
+/* View Menu */
+"View" = "View";
+"Toggle Outline" = "Toggle Outline";
+"Theme: Light" = "Theme: Light";
+"Theme: Dark" = "Theme: Dark";
+"Theme: Sepia" = "Theme: Sepia";
+"Theme: Green" = "Theme: Green";
+"Zoom In (Text)" = "Zoom In (Text)";
+"Zoom Out (Text)" = "Zoom Out (Text)";
+"Reset Text Zoom" = "Reset Text Zoom";
+"Widen Column" = "Widen Column";
+"Narrow Column" = "Narrow Column";
+"Zoom In Tooltip" = "Increase font size (85%–200%)";
+"Zoom Out Tooltip" = "Decrease font size (85%–200%)";
+"Reset Zoom Tooltip" = "Reset font size to 100%";
+"Widen Tooltip" = "Increase content width (600–1100px)";
+"Narrow Tooltip" = "Decrease content width (600–1100px)";
+
+/* Window Menu */
+"Window" = "Window";
+"Bring All to Front" = "Bring All to Front";
+"Minimize" = "Minimize";
+"Zoom" = "Zoom";

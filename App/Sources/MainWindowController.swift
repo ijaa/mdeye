@@ -48,73 +48,73 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
-        appMenu.addItem(withTitle: "About MDEye", action: #selector(showAbout), keyEquivalent: "")
-        appMenu.addItem(withTitle: "Set as Default Markdown App…", action: #selector(setAsDefaultApp(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: NSLocalizedString("About MDEye", comment: ""), action: #selector(showAbout), keyEquivalent: "")
+        appMenu.addItem(withTitle: NSLocalizedString("Set as Default Markdown App…", comment: ""), action: #selector(setAsDefaultApp(_:)), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "Quit MDEye", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: NSLocalizedString("Quit MDEye", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         let fileMenuItem = NSMenuItem()
         mainMenu.addItem(fileMenuItem)
-        let fileMenu = NSMenu(title: "File")
+        let fileMenu = NSMenu(title: NSLocalizedString("File", comment: ""))
         fileMenuItem.submenu = fileMenu
-        fileMenu.addItem(withTitle: "Open…", action: #selector(openMarkdown(_:)), keyEquivalent: "o")
-        fileMenu.addItem(withTitle: "Reload", action: #selector(reloadMarkdown(_:)), keyEquivalent: "r")
+        fileMenu.addItem(withTitle: NSLocalizedString("Open…", comment: ""), action: #selector(openMarkdown(_:)), keyEquivalent: "o")
+        fileMenu.addItem(withTitle: NSLocalizedString("Reload", comment: ""), action: #selector(reloadMarkdown(_:)), keyEquivalent: "r")
         fileMenu.addItem(NSMenuItem.separator())
-        fileMenu.addItem(withTitle: "Export PDF…", action: #selector(exportPDF(_:)), keyEquivalent: "e")
+        fileMenu.addItem(withTitle: NSLocalizedString("Export PDF…", comment: ""), action: #selector(exportPDF(_:)), keyEquivalent: "e")
         fileMenu.addItem(NSMenuItem.separator())
-        fileMenu.addItem(withTitle: "Reveal in Finder", action: #selector(revealInFinder(_:)), keyEquivalent: "R")
-        let openEditor = fileMenu.addItem(withTitle: "Open in Editor", action: #selector(openInEditor(_:)), keyEquivalent: "E")
+        fileMenu.addItem(withTitle: NSLocalizedString("Reveal in Finder", comment: ""), action: #selector(revealInFinder(_:)), keyEquivalent: "R")
+        let openEditor = fileMenu.addItem(withTitle: NSLocalizedString("Open in Editor", comment: ""), action: #selector(openInEditor(_:)), keyEquivalent: "E")
         openEditor.keyEquivalentModifierMask = [.command, .shift]
 
         let editMenuItem = NSMenuItem()
         mainMenu.addItem(editMenuItem)
-        let editMenu = NSMenu(title: "Edit")
+        let editMenu = NSMenu(title: NSLocalizedString("Edit", comment: ""))
         editMenuItem.submenu = editMenu
-        let findItem = editMenu.addItem(withTitle: "Find in Document…", action: nil, keyEquivalent: "f")
+        let findItem = editMenu.addItem(withTitle: NSLocalizedString("Find in Document…", comment: ""), action: nil, keyEquivalent: "f")
         findItem.isEnabled = false  // JS 层处理，仅显示快捷键
-        findItem.toolTip = "Handled by reader (⌘F to open, ⌘G/⇧⌘G to navigate, Esc to close)"
-        let findNextItem = editMenu.addItem(withTitle: "Find Next", action: nil, keyEquivalent: "g")
+        findItem.toolTip = NSLocalizedString("Find Tooltip", comment: "")
+        let findNextItem = editMenu.addItem(withTitle: NSLocalizedString("Find Next", comment: ""), action: nil, keyEquivalent: "g")
         findNextItem.isEnabled = false
-        let findPrevItem = editMenu.addItem(withTitle: "Find Previous", action: nil, keyEquivalent: "g")
+        let findPrevItem = editMenu.addItem(withTitle: NSLocalizedString("Find Previous", comment: ""), action: nil, keyEquivalent: "g")
         findPrevItem.keyEquivalentModifierMask = [.command, .shift]
         findPrevItem.isEnabled = false
 
         let viewMenuItem = NSMenuItem()
         mainMenu.addItem(viewMenuItem)
-        let viewMenu = NSMenu(title: "View")
+        let viewMenu = NSMenu(title: NSLocalizedString("View", comment: ""))
         viewMenuItem.submenu = viewMenu
-        viewMenu.addItem(withTitle: "Toggle Outline", action: #selector(toggleOutline(_:)), keyEquivalent: "b")
+        viewMenu.addItem(withTitle: NSLocalizedString("Toggle Outline", comment: ""), action: #selector(toggleOutline(_:)), keyEquivalent: "b")
         viewMenu.addItem(NSMenuItem.separator())
-        viewMenu.addItem(withTitle: "Theme: Light", action: #selector(setThemeLight(_:)), keyEquivalent: "1")
-        viewMenu.addItem(withTitle: "Theme: Dark", action: #selector(setThemeDark(_:)), keyEquivalent: "2")
-        viewMenu.addItem(withTitle: "Theme: Sepia", action: #selector(setThemeSepia(_:)), keyEquivalent: "3")
-        viewMenu.addItem(withTitle: "Theme: Green", action: #selector(setThemeGreen(_:)), keyEquivalent: "4")
+        viewMenu.addItem(withTitle: NSLocalizedString("Theme: Light", comment: ""), action: #selector(setThemeLight(_:)), keyEquivalent: "1")
+        viewMenu.addItem(withTitle: NSLocalizedString("Theme: Dark", comment: ""), action: #selector(setThemeDark(_:)), keyEquivalent: "2")
+        viewMenu.addItem(withTitle: NSLocalizedString("Theme: Sepia", comment: ""), action: #selector(setThemeSepia(_:)), keyEquivalent: "3")
+        viewMenu.addItem(withTitle: NSLocalizedString("Theme: Green", comment: ""), action: #selector(setThemeGreen(_:)), keyEquivalent: "4")
         viewMenu.addItem(NSMenuItem.separator())
         // 字号缩放
-        let zoomInItem = viewMenu.addItem(withTitle: "Zoom In (Text)", action: #selector(zoomTextIn(_:)), keyEquivalent: "+")
-        zoomInItem.toolTip = "Increase font size (85%–200%)"
-        let zoomOutItem = viewMenu.addItem(withTitle: "Zoom Out (Text)", action: #selector(zoomTextOut(_:)), keyEquivalent: "-")
-        zoomOutItem.toolTip = "Decrease font size (85%–200%)"
-        let zoomResetItem = viewMenu.addItem(withTitle: "Reset Text Zoom", action: #selector(zoomTextReset(_:)), keyEquivalent: "0")
-        zoomResetItem.toolTip = "Reset font size to 100%"
+        let zoomInItem = viewMenu.addItem(withTitle: NSLocalizedString("Zoom In (Text)", comment: ""), action: #selector(zoomTextIn(_:)), keyEquivalent: "+")
+        zoomInItem.toolTip = NSLocalizedString("Zoom In Tooltip", comment: "")
+        let zoomOutItem = viewMenu.addItem(withTitle: NSLocalizedString("Zoom Out (Text)", comment: ""), action: #selector(zoomTextOut(_:)), keyEquivalent: "-")
+        zoomOutItem.toolTip = NSLocalizedString("Zoom Out Tooltip", comment: "")
+        let zoomResetItem = viewMenu.addItem(withTitle: NSLocalizedString("Reset Text Zoom", comment: ""), action: #selector(zoomTextReset(_:)), keyEquivalent: "0")
+        zoomResetItem.toolTip = NSLocalizedString("Reset Zoom Tooltip", comment: "")
         viewMenu.addItem(NSMenuItem.separator())
         // 栏宽调整
-        let widen = NSMenuItem(title: "Widen Column", action: #selector(widenColumn(_:)), keyEquivalent: "+")
+        let widen = NSMenuItem(title: NSLocalizedString("Widen Column", comment: ""), action: #selector(widenColumn(_:)), keyEquivalent: "+")
         widen.keyEquivalentModifierMask = [.option]
-        widen.toolTip = "Increase content width (600–1100px)"
+        widen.toolTip = NSLocalizedString("Widen Tooltip", comment: "")
         viewMenu.addItem(widen)
-        let narrow = NSMenuItem(title: "Narrow Column", action: #selector(narrowColumn(_:)), keyEquivalent: "-")
+        let narrow = NSMenuItem(title: NSLocalizedString("Narrow Column", comment: ""), action: #selector(narrowColumn(_:)), keyEquivalent: "-")
         narrow.keyEquivalentModifierMask = [.option]
-        narrow.toolTip = "Decrease content width (600–1100px)"
+        narrow.toolTip = NSLocalizedString("Narrow Tooltip", comment: "")
         viewMenu.addItem(narrow)
 
         let windowMenuItem = NSMenuItem()
         mainMenu.addItem(windowMenuItem)
-        let windowMenu = NSMenu(title: "Window")
+        let windowMenu = NSMenu(title: NSLocalizedString("Window", comment: ""))
         windowMenuItem.submenu = windowMenu
-        windowMenu.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
-        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        windowMenu.addItem(withTitle: NSLocalizedString("Bring All to Front", comment: ""), action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
+        windowMenu.addItem(withTitle: NSLocalizedString("Minimize", comment: ""), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(withTitle: NSLocalizedString("Zoom", comment: ""), action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
         NSApp.windowsMenu = windowMenu
 
         NSApp.mainMenu = mainMenu
