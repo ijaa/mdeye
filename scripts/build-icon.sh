@@ -39,8 +39,10 @@ ext="${SRC##*.}"
 ext_lc=$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')
 if [[ "$ext_lc" == "png" ]]; then
   cp "$SRC" "$TMP_MASTER"
-  # Keep master asset in sync when regenerating from transparent png
-  cp "$SRC" "$MASTER_PNG"
+  # Keep master asset in sync when regenerating from transparent png (skip if same file)
+  if [[ "$(realpath "$SRC")" != "$(realpath "$MASTER_PNG")" ]]; then
+    cp "$SRC" "$MASTER_PNG"
+  fi
 else
   # JPEG rounded logos usually fill outside corners with black — convert to alpha.
   if ! python3 -c 'import PIL' 2>/dev/null; then
@@ -55,22 +57,28 @@ fi
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
 
-mk() {
-  local size="$1"
-  local name="$2"
-  sips -z "$size" "$size" "$TMP_MASTER" --out "$ICONSET/$name" >/dev/null
-}
+# 优先用 Python PIL 生成压缩的 iconset（体积约为 sips 的 1/3）
+if python3 -c 'import PIL' 2>/dev/null; then
+  python3 "$ROOT/scripts/optimize-iconset.py" "$TMP_MASTER" "$ICONSET"
+else
+  # Fallback: sips（CI 上可用，但生成体积较大）
+  mk() {
+    local size="$1"
+    local name="$2"
+    sips -z "$size" "$size" "$TMP_MASTER" --out "$ICONSET/$name" >/dev/null 2>&1
+  }
 
-mk 16 icon_16x16.png
-mk 32 diana.k@example.org
-mk 32 icon_32x32.png
-mk 64 ivan.p@example.net
-mk 128 icon_128x128.png
-mk 256 wendy.h@example.net
-mk 256 icon_256x256.png
-mk 512 wendy.h@example.net
-mk 512 icon_512x512.png
-mk 1024 walt.e@example.net
+  mk 16 icon_16x16.png
+  mk 32 icon_16x16@2x.png
+  mk 32 icon_32x32.png
+  mk 64 icon_32x32@2x.png
+  mk 128 icon_128x128.png
+  mk 256 icon_128x128@2x.png
+  mk 256 icon_256x256.png
+  mk 512 icon_256x256@2x.png
+  mk 512 icon_512x512.png
+  mk 1024 icon_512x512@2x.png
+fi
 
 iconutil -c icns "$ICONSET" -o "$ICNS"
 rm -f "$TMP_MASTER"

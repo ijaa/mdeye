@@ -63,7 +63,21 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         fileMenu.addItem(withTitle: "Export PDF…", action: #selector(exportPDF(_:)), keyEquivalent: "e")
         fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(withTitle: "Reveal in Finder", action: #selector(revealInFinder(_:)), keyEquivalent: "R")
-        fileMenu.addItem(withTitle: "Open in Editor", action: #selector(openInEditor(_:)), keyEquivalent: "E")
+        let openEditor = fileMenu.addItem(withTitle: "Open in Editor", action: #selector(openInEditor(_:)), keyEquivalent: "E")
+        openEditor.keyEquivalentModifierMask = [.command, .shift]
+
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenuItem.submenu = editMenu
+        let findItem = editMenu.addItem(withTitle: "Find in Document…", action: nil, keyEquivalent: "f")
+        findItem.isEnabled = false  // JS 层处理，仅显示快捷键
+        findItem.toolTip = "Handled by reader (⌘F to open, ⌘G/⇧⌘G to navigate, Esc to close)"
+        let findNextItem = editMenu.addItem(withTitle: "Find Next", action: nil, keyEquivalent: "g")
+        findNextItem.isEnabled = false
+        let findPrevItem = editMenu.addItem(withTitle: "Find Previous", action: nil, keyEquivalent: "g")
+        findPrevItem.keyEquivalentModifierMask = [.command, .shift]
+        findPrevItem.isEnabled = false
 
         let viewMenuItem = NSMenuItem()
         mainMenu.addItem(viewMenuItem)
@@ -76,16 +90,22 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         viewMenu.addItem(withTitle: "Theme: Sepia", action: #selector(setThemeSepia(_:)), keyEquivalent: "3")
         viewMenu.addItem(withTitle: "Theme: Green", action: #selector(setThemeGreen(_:)), keyEquivalent: "4")
         viewMenu.addItem(NSMenuItem.separator())
-        // F1：字号缩放（⌘+/⌘-/⌘0）与栏宽调整（⌥+/⌥-）。
-        viewMenu.addItem(withTitle: "Zoom In (Text)", action: #selector(zoomTextIn(_:)), keyEquivalent: "+")
-        viewMenu.addItem(withTitle: "Zoom Out (Text)", action: #selector(zoomTextOut(_:)), keyEquivalent: "-")
-        viewMenu.addItem(withTitle: "Reset Text Zoom", action: #selector(zoomTextReset(_:)), keyEquivalent: "0")
+        // 字号缩放
+        let zoomInItem = viewMenu.addItem(withTitle: "Zoom In (Text)", action: #selector(zoomTextIn(_:)), keyEquivalent: "+")
+        zoomInItem.toolTip = "Increase font size (85%–200%)"
+        let zoomOutItem = viewMenu.addItem(withTitle: "Zoom Out (Text)", action: #selector(zoomTextOut(_:)), keyEquivalent: "-")
+        zoomOutItem.toolTip = "Decrease font size (85%–200%)"
+        let zoomResetItem = viewMenu.addItem(withTitle: "Reset Text Zoom", action: #selector(zoomTextReset(_:)), keyEquivalent: "0")
+        zoomResetItem.toolTip = "Reset font size to 100%"
         viewMenu.addItem(NSMenuItem.separator())
+        // 栏宽调整
         let widen = NSMenuItem(title: "Widen Column", action: #selector(widenColumn(_:)), keyEquivalent: "+")
         widen.keyEquivalentModifierMask = [.option]
+        widen.toolTip = "Increase content width (600–1100px)"
         viewMenu.addItem(widen)
         let narrow = NSMenuItem(title: "Narrow Column", action: #selector(narrowColumn(_:)), keyEquivalent: "-")
         narrow.keyEquivalentModifierMask = [.option]
+        narrow.toolTip = "Decrease content width (600–1100px)"
         viewMenu.addItem(narrow)
 
         let windowMenuItem = NSMenuItem()
