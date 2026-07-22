@@ -90,8 +90,13 @@ enum FileService {
         if let s = String(data: data, encoding: .utf8) {
             return (s, "utf-8")
         }
-        // GB18030：常见 Windows 中文 .md（GBK 是其子集）。Foundation 内置，macOS 12+ 支持。
-        if let s = String(data: data, encoding: .gb18030) {
+        // GB18030（GBK 超集）：常见 Windows 中文 .md。.gb18030 便捷常量只在 Apple
+        // Foundation 提供，corelibs-foundation（CI 的 swift-corelibs）无此成员；
+        // 用 CFStringConvert 跨平台拿到 NSStringEncoding。
+        let gb18030 = String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(
+            CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue)
+        ))
+        if let s = String(data: data, encoding: gb18030) {
             return (s, "gb18030")
         }
         if let s = String(data: data, encoding: .utf16) {
